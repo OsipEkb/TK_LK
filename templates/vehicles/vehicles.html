@@ -1,0 +1,625 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Графики транспорта{% endblock %}
+
+{% block extra_css %}
+<style>
+.chart-container {
+    position: relative;
+    height: 400px;
+    min-height: 400px;
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 8px;
+}
+.control-panel {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #dee2e6;
+}
+.vehicle-card {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.vehicle-card:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+.vehicle-card.selected {
+    border-color: #007bff;
+    background-color: #e7f1ff;
+}
+.vehicle-status {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+.status-online { background-color: #28a745; }
+.status-offline { background-color: #dc3545; }
+.chart-type-btn {
+    margin: 2px;
+}
+.print-btn {
+    margin-left: 10px;
+}
+.chart-card {
+    transition: transform 0.2s;
+}
+.chart-card:hover {
+    transform: translateY(-2px);
+}
+.vehicle-info {
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок и хлебные крошки -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt"></i> Дашборд</a></li>
+                    <li class="breadcrumb-item active"><i class="fas fa-chart-line"></i> Графики транспорта</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0"><i class="fas fa-chart-line text-primary me-2"></i>Графики транспорта</h1>
+            <p class="text-muted">Интерактивные графики работы транспортных средств</p>
+        </div>
+    </div>
+
+    <!-- Панель управления -->
+    <div class="control-panel">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Дата начала</label>
+                        <input type="date" class="form-control" id="startDate" value="{{ default_start_date|default:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Дата окончания</label>
+                        <input type="date" class="form-control" id="endDate" value="{{ default_end_date|default:'' }}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-success" id="loadDataBtn">
+                    <i class="fas fa-sync-alt me-1"></i>Загрузить ТС
+                </button>
+                <button class="btn btn-secondary print-btn" id="printBtn" style="display: none;">
+                    <i class="fas fa-print me-1"></i>Печать
+                </button>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <label class="form-label fw-bold">Тип графика</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-outline-primary chart-type-btn active" data-type="fuel">
+                        <i class="fas fa-gas-pump me-1"></i>Топливо
+                    </button>
+                    <button type="button" class="btn btn-outline-primary chart-type-btn" data-type="work">
+                        <i class="fas fa-cogs me-1"></i>Работа
+                    </button>
+                    <button type="button" class="btn btn-outline-primary chart-type-btn" data-type="speed">
+                        <i class="fas fa-tachometer-alt me-1"></i>Скорость
+                    </button>
+                    <button type="button" class="btn btn-outline-primary chart-type-btn" data-type="mileage">
+                        <i class="fas fa-road me-1"></i>Пробег
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомление о mock данных -->
+    <div class="alert alert-info alert-dismissible fade show mb-4" id="mockDataAlert" style="display: none;">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Тестовый режим:</strong> Используются демонстрационные данные. Реальные данные временно недоступны.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="row">
+        <!-- Левая колонка - выбор ТС -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-truck me-2"></i>Транспортные средства
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Индикатор загрузки -->
+                    <div id="vehiclesLoading" class="text-center p-3" style="display: none;">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <span class="ms-2">Загрузка ТС...</span>
+                    </div>
+
+                    <!-- Список ТС -->
+                    <div id="vehiclesList" style="max-height: 600px; overflow-y: auto;">
+                        <div class="text-center p-4 text-muted">
+                            <i class="fas fa-truck fa-2x mb-2"></i>
+                            <p>Нажмите "Загрузить ТС" для получения списка транспортных средств</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка - графики -->
+        <div class="col-md-9">
+            <div id="chartsArea">
+                <!-- Пустое состояние -->
+                <div class="text-center p-5 text-muted" id="emptyState">
+                    <i class="fas fa-chart-line fa-3x mb-3"></i>
+                    <h4>Выберите транспортные средства</h4>
+                    <p>Выберите ТС из списка слева для отображения графиков</p>
+                </div>
+
+                <!-- Контейнер для графиков -->
+                <div id="chartsContainer" style="display: none;">
+                    <!-- Графики будут добавляться сюда динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Глобальные переменные
+let currentCharts = {};
+let selectedVehicles = new Set();
+let currentChartType = 'fuel';
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializePage();
+});
+
+function initializePage() {
+    setupEventListeners();
+    setDefaultDates();
+}
+
+function setupEventListeners() {
+    // Кнопка загрузки данных
+    document.getElementById('loadDataBtn').addEventListener('click', loadVehicles);
+
+    // Кнопки типа графика
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Убираем активный класс у всех кнопок
+            document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+            // Добавляем активный класс текущей кнопке
+            this.classList.add('active');
+            currentChartType = this.dataset.type;
+            refreshAllCharts();
+        });
+    });
+
+    // Кнопка печати
+    document.getElementById('printBtn').addEventListener('click', printCharts);
+
+    // Изменение дат
+    document.getElementById('startDate').addEventListener('change', refreshAllCharts);
+    document.getElementById('endDate').addEventListener('change', refreshAllCharts);
+}
+
+function setDefaultDates() {
+    const endDate = document.getElementById('endDate');
+    const startDate = document.getElementById('startDate');
+
+    if (!endDate.value) {
+        const today = new Date().toISOString().split('T')[0];
+        endDate.value = today;
+    }
+
+    if (!startDate.value) {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        startDate.value = weekAgo.toISOString().split('T')[0];
+    }
+}
+
+async function loadVehicles() {
+    const btn = document.getElementById('loadDataBtn');
+    const loadingEl = document.getElementById('vehiclesLoading');
+
+    btn.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Загрузка...';
+    btn.disabled = true;
+    loadingEl.style.display = 'block';
+
+    try {
+        const response = await fetch('/api/vehicles/', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Unknown error');
+        }
+
+        // Показываем уведомление если используются mock данные
+        if (result.source === 'mock_data') {
+            document.getElementById('mockDataAlert').style.display = 'block';
+        }
+
+        displayVehicles(result.vehicles);
+
+    } catch (error) {
+        console.error('Ошибка загрузки ТС:', error);
+        showError('Ошибка загрузки списка транспортных средств: ' + error.message);
+    } finally {
+        btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Загрузить ТС';
+        btn.disabled = false;
+        loadingEl.style.display = 'none';
+    }
+}
+
+function displayVehicles(vehicles) {
+    const container = document.getElementById('vehiclesList');
+
+    if (!vehicles || vehicles.length === 0) {
+        container.innerHTML = '<div class="text-center p-4 text-muted">Нет доступных транспортных средств</div>';
+        return;
+    }
+
+    let html = '';
+    vehicles.forEach(vehicle => {
+        const isOnline = vehicle.is_online || false;
+        const fuelLevel = vehicle.fuel_level || '-';
+        const speed = vehicle.speed || '0';
+
+        html += `
+            <div class="vehicle-card ${selectedVehicles.has(vehicle.id) ? 'selected' : ''}"
+                 data-vehicle-id="${vehicle.id}">
+                <div class="form-check mb-2">
+                    <input class="form-check-input vehicle-checkbox" type="checkbox"
+                           id="vehicle_${vehicle.id}" ${selectedVehicles.has(vehicle.id) ? 'checked' : ''}>
+                    <label class="form-check-label fw-bold" for="vehicle_${vehicle.id}">
+                        <span class="vehicle-status ${isOnline ? 'status-online' : 'status-offline'}"></span>
+                        ${vehicle.name}
+                    </label>
+                </div>
+                <div class="vehicle-info text-muted">
+                    <div>${vehicle.license_plate || 'Номер не указан'}</div>
+                    ${isOnline ? `
+                        <div class="text-success">
+                            <i class="fas fa-gas-pump me-1"></i>Топливо: ${fuelLevel} л
+                        </div>
+                        <div class="text-info">
+                            <i class="fas fa-tachometer-alt me-1"></i>Скорость: ${speed} км/ч
+                        </div>
+                    ` : `
+                        <div class="text-danger">
+                            <i class="fas fa-wifi-slash me-1"></i>Нет связи
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Добавляем обработчики для чекбоксов
+    container.querySelectorAll('.vehicle-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const vehicleId = this.closest('.vehicle-card').dataset.vehicleId;
+            const vehicleCard = this.closest('.vehicle-card');
+
+            if (this.checked) {
+                selectedVehicles.add(vehicleId);
+                vehicleCard.classList.add('selected');
+                showVehicleChart(vehicleId);
+            } else {
+                selectedVehicles.delete(vehicleId);
+                vehicleCard.classList.remove('selected');
+                hideVehicleChart(vehicleId);
+            }
+
+            updateUIState();
+        });
+    });
+}
+
+function updateUIState() {
+    const hasSelectedVehicles = selectedVehicles.size > 0;
+    const emptyState = document.getElementById('emptyState');
+    const chartsContainer = document.getElementById('chartsContainer');
+    const printBtn = document.getElementById('printBtn');
+
+    if (hasSelectedVehicles) {
+        emptyState.style.display = 'none';
+        chartsContainer.style.display = 'block';
+        printBtn.style.display = 'inline-block';
+    } else {
+        emptyState.style.display = 'block';
+        chartsContainer.style.display = 'none';
+        printBtn.style.display = 'none';
+    }
+}
+
+async function showVehicleChart(vehicleId) {
+    const chartsContainer = document.getElementById('chartsContainer');
+
+    // Создаем контейнер для графика если его нет
+    let chartDiv = document.getElementById(`chart_${vehicleId}`);
+    if (!chartDiv) {
+        chartDiv = document.createElement('div');
+        chartDiv.id = `chart_${vehicleId}`;
+        chartDiv.className = 'chart-card mb-4';
+        chartDiv.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 chart-title">Загрузка...</h6>
+                    <button class="btn btn-sm btn-outline-danger remove-chart" data-vehicle-id="${vehicleId}">
+                        <i class="fas fa-times"></i> Убрать
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="chart-loading text-center py-4">
+                        <div class="spinner-border" role="status"></div>
+                        <div class="mt-2">Загрузка данных...</div>
+                    </div>
+                    <div class="chart-content" style="display: none;">
+                        <div class="chart-container">
+                            <canvas id="chartCanvas_${vehicleId}"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        chartsContainer.appendChild(chartDiv);
+
+        // Обработчик кнопки удаления
+        chartDiv.querySelector('.remove-chart').addEventListener('click', function() {
+            const vehId = this.dataset.vehicleId;
+            hideVehicleChart(vehId);
+        });
+    }
+
+    // Загружаем данные и создаем график
+    await loadAndCreateChart(vehicleId);
+}
+
+async function loadAndCreateChart(vehicleId) {
+    const chartDiv = document.getElementById(`chart_${vehicleId}`);
+    const loadingEl = chartDiv.querySelector('.chart-loading');
+    const contentEl = chartDiv.querySelector('.chart-content');
+    const titleEl = chartDiv.querySelector('.chart-title');
+
+    loadingEl.style.display = 'block';
+    contentEl.style.display = 'none';
+
+    try {
+        const dateRange = getDateRange();
+        const chartData = await fetchChartData(vehicleId, dateRange, currentChartType);
+
+        // Обновляем заголовок
+        const vehicleName = getVehicleName(vehicleId);
+        titleEl.textContent = `${vehicleName} - ${getChartTypeTitle(currentChartType)}`;
+
+        // Создаем график
+        createChart(vehicleId, chartData, currentChartType);
+
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+
+    } catch (error) {
+        loadingEl.innerHTML = `
+            <div class="text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <div>Ошибка загрузки данных</div>
+                <small class="text-muted">${error.message}</small>
+            </div>
+        `;
+        console.error(`Ошибка загрузки графика для ТС ${vehicleId}:`, error);
+    }
+}
+
+async function fetchChartData(vehicleId, dateRange, chartType) {
+    console.log('📊 Загрузка данных графика...');
+
+    const response = await fetch('/api/vehicles/chart-data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            vehicle_id: vehicleId,
+            start_date: dateRange.start,
+            end_date: dateRange.end,
+            chart_type: chartType
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+        throw new Error(result.error || 'Unknown error');
+    }
+
+    return result.chart_data;
+}
+
+function createChart(vehicleId, chartData, chartType) {
+    const canvas = document.getElementById(`chartCanvas_${vehicleId}`);
+    if (!canvas) return;
+
+    // Уничтожаем старый график если есть
+    if (currentCharts[vehicleId]) {
+        currentCharts[vehicleId].destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    // Настройки в зависимости от типа графика
+    const config = {
+        type: chartType === 'work' ? 'bar' : 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Дата'
+                    }
+                },
+                y: {
+                    display: true,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: getYAxisTitle(chartType)
+                    }
+                }
+            }
+        }
+    };
+
+    currentCharts[vehicleId] = new Chart(ctx, config);
+}
+
+function hideVehicleChart(vehicleId) {
+    // Удаляем контейнер графика
+    const chartDiv = document.getElementById(`chart_${vehicleId}`);
+    if (chartDiv) {
+        chartDiv.remove();
+    }
+
+    // Уничтожаем график
+    if (currentCharts[vehicleId]) {
+        currentCharts[vehicleId].destroy();
+        delete currentCharts[vehicleId];
+    }
+
+    // Снимаем выделение с ТС
+    const vehicleCard = document.querySelector(`.vehicle-card[data-vehicle-id="${vehicleId}"]`);
+    if (vehicleCard) {
+        vehicleCard.classList.remove('selected');
+        const checkbox = vehicleCard.querySelector('.vehicle-checkbox');
+        if (checkbox) checkbox.checked = false;
+    }
+
+    selectedVehicles.delete(vehicleId);
+    updateUIState();
+}
+
+function refreshAllCharts() {
+    selectedVehicles.forEach(vehicleId => {
+        loadAndCreateChart(vehicleId);
+    });
+}
+
+function printCharts() {
+    window.print();
+}
+
+// Вспомогательные функции
+function getDateRange() {
+    return {
+        start: document.getElementById('startDate').value,
+        end: document.getElementById('endDate').value
+    };
+}
+
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function getVehicleName(vehicleId) {
+    const vehicleCard = document.querySelector(`.vehicle-card[data-vehicle-id="${vehicleId}"]`);
+    return vehicleCard ? vehicleCard.querySelector('.fw-bold').textContent.trim() : 'ТС';
+}
+
+function getChartTypeTitle(type) {
+    const titles = {
+        fuel: 'Расход топлива',
+        work: 'Время работы',
+        speed: 'Скорость',
+        mileage: 'Пробег'
+    };
+    return titles[type] || 'График';
+}
+
+function getYAxisTitle(chartType) {
+    const titles = {
+        fuel: 'Литры',
+        work: 'Часы',
+        speed: 'км/ч',
+        mileage: 'Километры'
+    };
+    return titles[chartType] || 'Значение';
+}
+
+function showError(message) {
+    alert('Ошибка: ' + message);
+}
+</script>
+{% endblock %}

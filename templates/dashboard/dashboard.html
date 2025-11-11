@@ -1,0 +1,213 @@
+<!-- templates/dashboard/dashboard.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Главный дашборд - Мониторинг транспорта{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-tachometer-alt me-2"></i>Мониторинг транспорта
+            <span id="loadingSpinner" class="spinner-border spinner-border-sm text-primary ms-2" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </span>
+        </h1>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadData()">
+            <i class="fas fa-sync-alt me-1"></i> Обновить
+        </button>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Всего ТС</h5>
+                    <h2 id="totalVehicles">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>Онлайн</h5>
+                    <h2 id="onlineVehicles">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Оффлайн</h5>
+                    <h2 id="offlineVehicles">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>В движении</h5>
+                    <h2 id="movingVehicles">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-truck me-2"></i>Транспортные средства
+                <small class="text-muted ms-2" id="lastUpdate">Загрузка...</small>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Госномер</th>
+                            <th>Скорость</th>
+                            <th>Топливо</th>
+                            <th>Статус</th>
+                            <th>Обновление</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehiclesTable">
+                        <tr>
+                            <td colspan="6" class="text-center">Загрузка данных...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ПРОСТОЙ И РАБОЧИЙ JavaScript
+async function loadData() {
+    console.log('🔄 Начинаем загрузку данных...');
+
+    try {
+        // Показываем загрузку
+        document.getElementById('loadingSpinner').style.display = 'inline-block';
+
+        // Загружаем данные
+        const response = await fetch('/dashboard/api/data/');
+        console.log('📡 Ответ от API:', response.status);
+
+        const data = await response.json();
+        console.log('📊 Данные:', data);
+
+        if (data.success) {
+            updateDashboard(data.data);
+        } else {
+            console.error('❌ Ошибка в данных:', data.error);
+            showError('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+        }
+
+    } catch (error) {
+        console.error('💥 Ошибка загрузки:', error);
+        showError('Ошибка подключения: ' + error.message);
+    } finally {
+        // Скрываем спиннер
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+}
+
+function updateDashboard(dashboardData) {
+    console.log('🎯 Обновляем дашборд с данными:', dashboardData);
+
+    // Обновляем статистику
+    document.getElementById('totalVehicles').textContent = dashboardData.total_vehicles || 0;
+    document.getElementById('onlineVehicles').textContent = dashboardData.online_vehicles || 0;
+    document.getElementById('offlineVehicles').textContent = dashboardData.offline_vehicles || 0;
+
+    // Считаем ТС в движении
+    const movingCount = dashboardData.vehicles ?
+        dashboardData.vehicles.filter(v => v.speed > 0).length : 0;
+    document.getElementById('movingVehicles').textContent = movingCount;
+
+    // Обновляем таблицу
+    updateVehiclesTable(dashboardData.vehicles || []);
+
+    // Обновляем время
+    document.getElementById('lastUpdate').textContent =
+        'Обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+}
+
+function updateVehiclesTable(vehicles) {
+    console.log('📋 Обновляем таблицу с', vehicles.length, 'ТС');
+
+    const tbody = document.getElementById('vehiclesTable');
+
+    if (vehicles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Нет данных о транспортных средствах</td></tr>';
+        return;
+    }
+
+    // Создаем строки таблицы
+    let html = '';
+    vehicles.forEach(vehicle => {
+        const status = vehicle.is_online ?
+            (vehicle.speed > 0 ?
+                '<span class="badge bg-success">В движении</span>' :
+                '<span class="badge bg-secondary">На стоянке</span>') :
+            '<span class="badge bg-warning">Оффлайн</span>';
+
+        const speed = vehicle.speed > 0 ?
+            `<span class="text-success fw-bold">${vehicle.speed} км/ч</span>` :
+            '<span class="text-muted">0 км/ч</span>';
+
+        const fuel = vehicle.fuel_level ?
+            `${vehicle.fuel_level} л` :
+            '<span class="text-muted">-</span>';
+
+        const lastUpdate = vehicle.last_update ?
+            new Date(vehicle.last_update).toLocaleString('ru-RU') :
+            '<span class="text-muted">-</span>';
+
+        html += `
+            <tr>
+                <td><strong>${escapeHtml(vehicle.name)}</strong></td>
+                <td>${vehicle.license_plate ? `<span class="badge bg-dark">${escapeHtml(vehicle.license_plate)}</span>` : '-'}</td>
+                <td>${speed}</td>
+                <td>${fuel}</td>
+                <td>${status}</td>
+                <td><small>${lastUpdate}</small></td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+    console.log('✅ Таблица обновлена');
+}
+
+function showError(message) {
+    // Простой alert для ошибок
+    alert('Ошибка: ' + message);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Загружаем данные при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Страница загружена, начинаем загрузку данных...');
+    loadData();
+
+    // Автообновление каждые 5 минут
+    setInterval(loadData, 5 * 60 * 1000);
+});
+</script>
+{% endblock %}
