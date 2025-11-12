@@ -2,13 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Копируем requirements.txt первым для кэширования
-COPY requirements.txt .
+# Установка Poetry
+RUN pip install poetry
+
+# Копируем конфигурацию Poetry
+COPY pyproject.toml poetry.lock* ./
 
 # Устанавливаем зависимости
-RUN pip install --no-cache-dir -r requirements.txt
+RUN poetry config virtualenvs.create false && poetry install --no-dev
 
-# Копируем весь проект
+# Копируем проект
 COPY . .
 
 # Собираем статику
