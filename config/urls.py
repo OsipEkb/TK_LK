@@ -2,13 +2,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
+from users.views import HTMLLoginView  # Импортируем ваш класс-based view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', RedirectView.as_view(url='/dashboard/', permanent=True)),
 
-    # Authentication
+    # Главная страница теперь ведет на HTML форму входа
+    path('', HTMLLoginView.as_view(), name='home'),
+
+    # Authentication URLs
     path('auth/', include('users.urls')),
 
     # API routes
