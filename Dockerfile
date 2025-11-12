@@ -1,21 +1,19 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Установка Poetry
 RUN pip install poetry
 
-# Копируем конфигурацию Poetry
 COPY pyproject.toml poetry.lock* ./
 
-# Устанавливаем зависимости
-RUN poetry config virtualenvs.create false && poetry install --no-dev
+# Добавляем --no-root чтобы не устанавливать сам проект
+RUN poetry config virtualenvs.create false && \
+    poetry install --only main --no-interaction --no-ansi --no-root
 
-# Копируем проект
 COPY . .
 
-# Собираем статику
 RUN python manage.py collectstatic --noinput
 
-# Запускаем приложение
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:$PORT"]
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
