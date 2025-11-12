@@ -8,7 +8,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+
+# ИСПРАВЛЕННЫЙ ALLOWED_HOSTS
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# Автоматическое добавление Render хоста
+if 'RENDER' in os.environ:
+    RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+    if RENDER_EXTERNAL_HOSTNAME:
+        ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+# Явное добавление всех нужных хостов
+ALLOWED_HOSTS.extend([
+    'tk-lk.onrender.com',
+    '.onrender.com',
+    'srv-d49o11ur433s73e6hv5g.own-d49nvs1e2q1c73do8lh0.svc.cluster.local'
+])
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -62,7 +77,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# ПРОСТАЯ БАЗА ДАННЫХ
+# БАЗА ДАННЫХ
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -73,7 +88,11 @@ DATABASES = {
 # Автоматически используем PostgreSQL на Render
 if 'RENDER' in os.environ or 'DATABASE_URL' in os.environ:
     import dj_database_url
-    DATABASES['default'] = dj_database_url.config(conn_max_age=600)
+    DATABASES['default'] = dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -143,3 +162,15 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
+
+# Production настройки для Render
+if 'RENDER' in os.environ:
+    DEBUG = False
+    # Безопасность
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
