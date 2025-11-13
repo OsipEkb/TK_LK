@@ -1,0 +1,29 @@
+<!-- templates/dashboard/debug_raw_data.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Отладка сырых данных</h1>
+
+    <h3>Тестовые device_ids:</h3>
+    <pre>{{ device_ids|pprint }}</pre>
+
+    <h3>GetOnlineInfoAll (первые 2 ТС):</h3>
+    {% if online_info_all_sample %}
+        <pre>{{ online_info_all_sample|pprint }}</pre>
+    {% else %}
+        <div class="alert alert-warning">Нет данных</div>
+    {% endif %}
+
+    <h3>GetOnlineInfo_with_fuel:</h3>
+    {% if online_info_fuel_sample %}
+        <pre>{{ online_info_fuel_sample|pprint }}</pre>
+    {% else %}
+        <div class="alert alert-warning">Нет данных</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+</div>
+{% endblock %}

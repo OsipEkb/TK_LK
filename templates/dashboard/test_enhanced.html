@@ -1,0 +1,17 @@
+<!-- templates/dashboard/test_enhanced.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Тестирование улучшенного дашборда</h1>
+
+    {% if dashboard_data %}
+    <h3>Данные дашборда:</h3>
+    <pre>{{ dashboard_data|pprint }}</pre>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+</div>
+{% endblock %}

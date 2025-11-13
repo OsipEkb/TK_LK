@@ -1,0 +1,50 @@
+<!-- templates/dashboard/test_online_apis.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Тестирование API методов онлайн данных</h1>
+
+    {% if test_vehicles %}
+    <h3>Тестовые ТС:</h3>
+    <div class="row">
+        {% for vehicle in test_vehicles %}
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ vehicle.Name }}</h5>
+                    <p class="card-text">
+                        ID: {{ vehicle.ID }}<br>
+                        Serial: {{ vehicle.Serial|default:"-" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if results %}
+    <h3>Результаты API методов:</h3>
+
+    {% for method_name, result in results.items %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>{{ method_name }}</h4>
+        </div>
+        <div class="card-body">
+            {% if result %}
+                <pre>{{ result|pprint }}</pre>
+            {% else %}
+                <div class="text-muted">Нет данных</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+</div>
+{% endblock %}

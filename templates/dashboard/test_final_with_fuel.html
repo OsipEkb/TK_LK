@@ -1,0 +1,98 @@
+<!-- templates/dashboard/test_final_with_fuel.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Финальный тест с исправленным источником данных по топливу</h1>
+
+    {% if dashboard_data %}
+    <h3>Статистика:</h3>
+    <div class="row">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Всего ТС</h5>
+                    <h2>{{ dashboard_data.total_vehicles }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>Онлайн</h5>
+                    <h2>{{ dashboard_data.online_vehicles }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Оффлайн</h5>
+                    <h2>{{ dashboard_data.offline_vehicles }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>В движении</h5>
+                    <h2>{{ dashboard_data.moving_vehicles }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>С топливом</h5>
+                    <h2>{{ vehicles_with_fuel }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 class="mt-4">Транспортные средства (с топливом):</h3>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Госномер</th>
+                    <th>Скорость</th>
+                    <th>Топливо</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vehicle in dashboard_data.vehicles %}
+                <tr>
+                    <td>{{ vehicle.name }}</td>
+                    <td><span class="badge bg-dark">{{ vehicle.license_plate }}</span></td>
+                    <td>{{ vehicle.speed|floatformat:1 }} км/ч</td>
+                    <td>
+                        {% if vehicle.fuel_level is not None %}
+                            <span class="fw-bold text-success">{{ vehicle.fuel_level|floatformat:1 }} л</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ vehicle.address|default:"-"|truncatechars:50 }}</td>
+                    <td>
+                        {% if vehicle.is_online %}
+                            <span class="badge bg-success">Онлайн</span>
+                        {% else %}
+                            <span class="badge bg-warning">Оффлайн</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+</div>
+{% endblock %}
