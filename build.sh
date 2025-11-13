@@ -1,7 +1,12 @@
-#!/bin/bash
+
+
 set -o errexit
 
-pip install -r requirements.txt
+# Install dependencies using Poetry
+poetry install --no-dev --no-interaction --no-ansi
 
-python manage.py collectstatic --noinput
-python manage.py migrate
+# Collect static files
+poetry run python manage.py collectstatic --noinput
+
+# Run migrations
+poetry run python manage.py migrate
