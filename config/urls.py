@@ -1,21 +1,19 @@
 from django.contrib import admin
-from django.urls import path, include  # ДОБАВЬТЕ include в импорт!
+from django.urls import path, include
 from django.http import HttpResponse
-import os
+from django.views.generic import RedirectView
 
 def home_view(request):
-    return HttpResponse(f"""
-    <h1>🚗 Транспортная компания</h1>
-    <p>Сайт успешно запущен на Render!</p>
-    <p><strong>DEBUG:</strong> {__import__('django.conf').settings.DEBUG}</p>
-    <p><strong>Host:</strong> {request.get_host()}</p>
-    <p><strong>Path:</strong> {request.path}</p>
+    return HttpResponse("""
+    <h1>🚗 Транспортная компания "Техноком"</h1>
+    <p>Система управления транспортом</p>
     <hr>
-    <p><a href="/auth/login/">Войти в систему</a></p>
-    <p><a href="/admin/">Админка</a></p>
-    <p><a href="/health/">Health Check</a></p>
+    <p><a href="/auth/login/">📱 Войти в систему</a></p>
+    <p><a href="/admin/">⚙️ Админка</a></p>
+    <p><a href="/health/">❤️ Health Check</a></p>
     <hr>
-    <p>Статус: Работает ✅</p>
+    <p>Статус: <strong>Работает ✅</strong></p>
+    <p>Сервер: <strong>Render</strong></p>
     """)
 
 def health_check(request):
