@@ -6,24 +6,31 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key')
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-development')
 
-# ИСПРАВЛЕННЫЙ ALLOWED_HOSTS
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Определяем среду выполнения
+IS_RENDER = 'RENDER' in os.environ
+IS_PRODUCTION = os.getenv('DJANGO_ENV') == 'production' or IS_RENDER
 
-# Автоматическое добавление Render хоста
-if 'RENDER' in os.environ:
+DEBUG = not IS_PRODUCTION
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+]
+
+# Добавляем продакшен хосты только в production
+if IS_PRODUCTION:
+    ALLOWED_HOSTS.extend([
+        'tk-lk.onrender.com',
+        '.onrender.com',
+    ])
+
+    # Добавляем хост Render если есть
     RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
     if RENDER_EXTERNAL_HOSTNAME:
         ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
-# Явное добавление всех нужных хостов
-ALLOWED_HOSTS.extend([
-    'tk-lk.onrender.com',
-    '.onrender.com',
-    'srv-d49o11ur433s73e6hv5g.own-d49nvs1e2q1c73do8lh0.svc.cluster.local'
-])
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -77,7 +84,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# БАЗА ДАННЫХ
+# БАЗА ДАННЫХ - SQLite для разработки
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -85,9 +92,10 @@ DATABASES = {
     }
 }
 
-# Автоматически используем PostgreSQL на Render
-if 'RENDER' in os.environ or 'DATABASE_URL' in os.environ:
+# Используем PostgreSQL только на Render
+if IS_RENDER:
     import dj_database_url
+
     DATABASES['default'] = dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
         conn_max_age=600,
@@ -116,9 +124,15 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 AUTH_USER_MODEL = 'users.User'
 
 REST_FRAMEWORK = {
@@ -134,13 +148,21 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Добавляем продакшен origins только в production
+if IS_PRODUCTION:
+    CORS_ALLOWED_ORIGINS.append("https://tk-lk.onrender.com")
+
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://tk-lk.onrender.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# Добавляем продакшен origins только в production
+if IS_PRODUCTION:
+    CSRF_TRUSTED_ORIGINS.append("https://tk-lk.onrender.com")
 
 AUTOGRAPH_API_BASE_URL = os.getenv('AUTOGRAPH_API_BASE_URL', 'https://web.tk-ekat.ru')
 AUTOGRAPH_API_TIMEOUT = int(os.getenv('AUTOGRAPH_API_TIMEOUT', 30))
@@ -149,10 +171,7 @@ LOGIN_URL = '/auth/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/auth/login/'
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Отключаем ненужное для начала
+# Отключаем Celery для начала
 CELERY_BROKER_URL = None
 CELERY_RESULT_BACKEND = None
 
@@ -163,9 +182,8 @@ CACHES = {
     }
 }
 
-# Production настройки для Render
-if 'RENDER' in os.environ:
-    DEBUG = False
+# Production настройки ТОЛЬКО для Render
+if IS_RENDER:
     # Безопасность
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -174,3 +192,27 @@ if 'RENDER' in os.environ:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+    # Логирование
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    }
+else:
+    # Development настройки
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+
+# Ensure directories exist
+os.makedirs(STATIC_ROOT, exist_ok=True)
+os.makedirs(MEDIA_ROOT, exist_ok=True)

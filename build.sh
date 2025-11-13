@@ -1,12 +1,33 @@
-
+#!/usr/bin/env bash
+# build.sh
 
 set -o errexit
 
-# Install dependencies using Poetry
+echo "=== Starting build process ==="
+
+# Установка Poetry если не установлен
+if ! command -v poetry &> /dev/null; then
+    echo "Installing Poetry..."
+    curl -sSL https://install.python-poetry.org | python3 -
+    export PATH="/opt/render/.local/bin:$PATH"
+fi
+
+echo "Poetry version:"
+poetry --version
+
+echo "Installing dependencies..."
 poetry install --no-dev --no-interaction --no-ansi
 
-# Collect static files
-poetry run python manage.py collectstatic --noinput
+echo "Activating virtual environment..."
+source $(poetry env info --path)/bin/activate
 
-# Run migrations
-poetry run python manage.py migrate
+echo "Making migrations..."
+python manage.py makemigrations --noinput
+
+echo "Applying migrations..."
+python manage.py migrate --noinput
+
+echo "Collecting static files..."
+python manage.py collectstatic --noinput --clear
+
+echo "=== Build completed successfully ==="
