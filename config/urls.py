@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include  # ДОБАВЬТЕ include в импорт!
 from django.http import HttpResponse
 import os
 
