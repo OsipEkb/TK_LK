@@ -17,9 +17,27 @@ class Organization(models.Model):
 
 
 class User(AbstractUser):
+    # ПЕРЕОПРЕДЕЛЯЕМ группы и permissions с кастомными related_name
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='groups',
+        blank=True,
+        help_text='The groups this user belongs to.',
+        related_name='custom_user_set',  # УНИКАЛЬНЫЙ related_name
+        related_query_name='user',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name='user permissions',
+        blank=True,
+        help_text='Specific permissions for this user.',
+        related_name='custom_user_permissions',  # УНИКАЛЬНЫЙ related_name
+        related_query_name='user',
+    )
+
     USER_TYPE_CHOICES = (
         ('user', 'Пользователь'),
-        ('admin', 'Администратор'),
+        ('admin', 'Аминистратор'),
     )
 
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='user')

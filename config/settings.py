@@ -8,6 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-render')
 
+SILENCED_SYSTEM_CHECKS = ['fields.E304', 'models.W042']
+
+# Оставляем кастомную модель пользователя
+AUTH_USER_MODEL = 'users.User'
 # ВРЕМЕННО: всегда DEBUG для диагностики
 DEBUG = True
 
@@ -16,19 +20,24 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
+    'django.contrib.auth',      # ПЕРВЫМ
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Ваши приложения
-    'users',
+    # ПОТОМ кастомные приложения
+    'users',                    # приложение с User моделью
     'vehicles',
     'dashboard',
     'billing',
     'support',
     'api',
+
+    # Сторонние
+    'rest_framework',
+    'corsheaders',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
