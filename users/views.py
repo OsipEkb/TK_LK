@@ -200,7 +200,7 @@ class HTMLLoginView(View):
     """
     HTML форма для входа через AutoGRAPH API
     """
-    template_name = 'auth/login.html'
+    template_name = 'users/login.html'
 
     def get(self, request):
         """
@@ -217,6 +217,8 @@ class HTMLLoginView(View):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
+        print(f"🔐 LOGIN ATTEMPT: username={username}, password={password}")
+
         if not username or not password:
             messages.error(request, 'Введите имя пользователя и пароль')
             return render(request, self.template_name)
@@ -225,11 +227,23 @@ class HTMLLoginView(View):
             print(f"🔄 HTML Login attempt for user: {username}")
 
             # Аутентификация через AutoGRAPH API
+            print("🔄 Creating AutoGraphAPIClient...")
             client = AutoGraphAPIClient()
+            print(f"🔧 Client created with base_url: {client.base_url}")
+
+            print("🔄 Calling client.login()...")
             token = client.login(username, password)
+            print(f"🔑 Login result - token received: {bool(token)}")
+
+            # ИСПРАВЛЕНО: проверяем что token не None и не bool
+            if token and isinstance(token, str):
+                print(f"🔑 Token preview: {token[:50]}")
+            else:
+                print(f"🔑 Token: {token}")
 
             if not token:
                 messages.error(request, 'Неверное имя пользователя или пароль')
+                print("❌ AutoGRAPH authentication failed - no token received")
                 return render(request, self.template_name)
 
             print(f"✅ AutoGRAPH authentication successful for {username}")
@@ -248,6 +262,7 @@ class HTMLLoginView(View):
                 print(f"✅ Created new user: {username}")
 
             # Сохраняем токен AutoGRAPH
+            print("🔄 Saving token to database...")
             UserAuthToken.objects.update_or_create(
                 user=user,
                 defaults={'token': token}
@@ -255,6 +270,7 @@ class HTMLLoginView(View):
             print(f"✅ Token saved to DB for user: {username}")
 
             # Аутентифицируем пользователя в Django
+            print("🔄 Authenticating in Django...")
             django_user = authenticate(request, username=username, password=password)
             if django_user:
                 login(request, django_user)
@@ -269,6 +285,8 @@ class HTMLLoginView(View):
         except Exception as e:
             logger.error(f"HTML login error for {username}: {e}")
             print(f"💥 HTML login exception: {str(e)}")
+            import traceback
+            traceback.print_exc()
             messages.error(request, f'Ошибка входа: {str(e)}')
             return render(request, self.template_name)
 

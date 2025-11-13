@@ -26,7 +26,7 @@ def dashboard(request):
     try:
         # Получаем данные для первоначальной загрузки страницы
         service = AutoGraphService()
-        if service.login("demo", "demo"):
+        if service.login("Osipenko", "Osipenko"):
             schemas = service.get_schemas()
             if schemas:
                 first_schema = schemas[0]
@@ -40,7 +40,7 @@ def dashboard(request):
                     moving_vehicles = len([v for v in dashboard_data.get('vehicles', []) if v.get('speed', 0) > 0])
 
                     context = {
-                        'schema_name': first_schema.get('Name', 'Demo'),
+                        'schema_name': first_schema.get('Name', 'Основная схема'),
                         'total_vehicles': dashboard_data.get('total_vehicles', 0),
                         'online_vehicles': dashboard_data.get('online_vehicles', 0),
                         'offline_vehicles': dashboard_data.get('offline_vehicles', 0),
@@ -52,7 +52,7 @@ def dashboard(request):
 
         # Fallback если данные не получены
         context = {
-            'schema_name': 'Demo',
+            'schema_name': 'Основная схема',
             'total_vehicles': 0,
             'online_vehicles': 0,
             'offline_vehicles': 0,
@@ -65,7 +65,7 @@ def dashboard(request):
     except Exception as e:
         logger.error(f"Dashboard view error: {e}")
         context = {
-            'schema_name': 'Demo',
+            'schema_name': 'Основная схема',
             'total_vehicles': 0,
             'online_vehicles': 0,
             'offline_vehicles': 0,
@@ -81,7 +81,7 @@ def debug_online(request):
     """Страница для отладки онлайн данных"""
     try:
         service = AutoGraphService()
-        if service.login("demo", "demo"):
+        if service.login("Osipenko", "Osipenko"):
             schemas = service.get_schemas()
             if schemas:
                 schema_id = schemas[0].get('ID')
@@ -91,7 +91,7 @@ def debug_online(request):
 
                 context = {
                     'online_data': online_data,
-                    'schema_name': schemas[0].get('Name', 'Demo'),
+                    'schema_name': schemas[0].get('Name', 'Основная схема'),
                     'current_time': timezone.now(),
                 }
                 return render(request, 'dashboard/debug_online.html', context)
@@ -101,7 +101,7 @@ def debug_online(request):
 
     return render(request, 'dashboard/debug_online.html', {
         'online_data': {},
-        'schema_name': 'Demo',
+        'schema_name': 'Основная схема',
         'current_time': timezone.now(),
     })
 
@@ -110,14 +110,14 @@ def debug_online(request):
 def vehicles_page(request):
     """Страница транспорта с реальными данными"""
     try:
-        # Используем демо credentials для получения данных
+        # Используем реальные credentials для получения данных
         service = AutoGraphService()
-        if service.login("demo", "demo"):
+        if service.login("Osipenko", "Osipenko"):
             schemas = service.get_schemas()
             if schemas:
                 first_schema = schemas[0]
                 schema_id = first_schema.get('ID')
-                schema_name = first_schema.get('Name', 'Demo')
+                schema_name = first_schema.get('Name', 'Основная схема')
 
                 vehicles_data = service.get_vehicles(schema_id)
                 all_vehicles = []
@@ -143,7 +143,7 @@ def vehicles_page(request):
         # Если что-то пошло не так
         return render(request, 'vehicles/vehicles.html', {
             'all_vehicles': [],
-            'schema_name': 'Demo',
+            'schema_name': 'Основная схема',
             'current_time': timezone.now(),
         })
 
@@ -151,7 +151,7 @@ def vehicles_page(request):
         logger.error(f"Ошибка получения данных транспорта: {e}")
         return render(request, 'vehicles/vehicles.html', {
             'all_vehicles': [],
-            'schema_name': 'Demo',
+            'schema_name': 'Основная схема',
             'current_time': timezone.now(),
         })
 

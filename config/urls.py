@@ -4,17 +4,8 @@ from django.http import HttpResponse
 from django.views.generic import RedirectView
 
 def home_view(request):
-    return HttpResponse("""
-    <h1>🚗 Транспортная компания "Техноком"</h1>
-    <p>Система управления транспортом</p>
-    <hr>
-    <p><a href="/auth/login/">📱 Войти в систему</a></p>
-    <p><a href="/admin/">⚙️ Админка</a></p>
-    <p><a href="/health/">❤️ Health Check</a></p>
-    <hr>
-    <p>Статус: <strong>Работает ✅</strong></p>
-    <p>Сервер: <strong>Render</strong></p>
-    """)
+    """Главная страница - редирект на вход"""
+    return RedirectView.as_view(url='/auth/login/', permanent=False)(request)
 
 def health_check(request):
     return HttpResponse("OK", status=200)

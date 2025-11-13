@@ -56,7 +56,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # ДОБАВЬ ЭТУ СТРОКУ!
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -68,7 +68,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # База данных - SQLite (проще для начала)
@@ -131,3 +130,12 @@ LOGGING = {
 
 # Создаем директории если нет
 os.makedirs(STATIC_ROOT, exist_ok=True)
+
+# AutoGRAPH API настройки
+AUTOGRAPH_API_BASE_URL = os.getenv('AUTOGRAPH_API_BASE_URL', 'https://web.tk-ekat.ru')
+AUTOGRAPH_API_TIMEOUT = int(os.getenv('AUTOGRAPH_API_TIMEOUT', 30))
+
+# Настройки аутентификации
+LOGIN_URL = '/auth/login/'  # URL для входа
+LOGIN_REDIRECT_URL = '/dashboard/'  # Куда редиректить после успешного входа
+LOGOUT_REDIRECT_URL = '/auth/login/'  # Куда редиректить после выхода

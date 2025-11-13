@@ -22,25 +22,41 @@ class AutoGraphService:
                 'UTCOffset': 180  # Moscow UTC+3
             }
 
+            print(f"🌐 SERVICE API CALL URL: {url}")
+            print(f"🔑 SERVICE CREDENTIALS: UserName={username}, Password={'*' * len(password)}")
+            print(f"⚙️ SERVICE PARAMS: {params}")
+
             logger.info(f"🔄 Logging in to AutoGRAPH: {username}")
             response = self.session.get(url, params=params, timeout=30)
+
+            print(f"📡 SERVICE RESPONSE STATUS: {response.status_code}")
+            print(f"📡 SERVICE RESPONSE TEXT: {response.text}")
+            print(f"📡 SERVICE RESPONSE HEADERS: {dict(response.headers)}")
 
             if response.status_code == 200:
                 self.token = response.text.strip('"')
                 if self.token and self.token != '""':
+                    print(f"✅ SERVICE Login successful, token length: {len(self.token)}")
+                    print(f"✅ SERVICE Token preview: {self.token[:50]}...")
                     logger.info(f"✅ Login successful, token: {self.token[:20]}...")
                     return True
                 else:
+                    print("❌ SERVICE Invalid credentials - empty token")
                     logger.error("❌ Invalid credentials - empty token")
                     return False
             elif response.status_code == 401:
+                print("❌ SERVICE Authentication failed - 401 Unauthorized")
                 logger.error("❌ Authentication failed - 401 Unauthorized")
                 return False
             else:
+                print(f"❌ SERVICE Login failed with status: {response.status_code}")
                 logger.error(f"❌ Login failed with status: {response.status_code}")
                 return False
 
         except Exception as e:
+            print(f"💥 SERVICE Connection error: {e}")
+            import traceback
+            traceback.print_exc()
             logger.error(f"❌ Connection error: {e}")
             return False
 

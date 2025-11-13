@@ -1,12 +1,7 @@
 import requests
 import logging
 from django.conf import settings
-from datetime import datetime, timedelta
 import json
-import urllib3
-import ssl
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -14,65 +9,65 @@ logger = logging.getLogger(__name__)
 class AutoGraphAPIClient:
     """Клиент для работы с AutoGRAPH API"""
 
-    def __init__(self, username=None, password=None, token=None):
-        self.base_url = "https://service.autograph-online.com"
+    def __init__(self):
+        # ИСПРАВЛЕНО: используем тот же URL что и в AutoGraphService
+        self.base_url = settings.AUTOGRAPH_API_BASE_URL  # "https://web.tk-ekat.ru"
         self.session = requests.Session()
-        self.token = token
-        self.username = username
-        self.password = password
+        self.token = None
 
-        # Отключаем проверку SSL для тестирования
-        self.session.verify = False
-
-logger = logging.getLogger(__name__)
-
-
-class AutoGraphAPIClient:
-    """Клиент для работы с AutoGRAPH API"""
-
-    def __init__(self, username=None, password=None, token=None):
-        self.base_url = "https://service.autograph-online.com"
-        self.session = requests.Session()
-        self.token = token
-        self.username = username
-        self.password = password
-
-    def login(self, username=None, password=None):
+    def login(self, username, password):
         """Аутентификация в AutoGRAPH"""
         try:
-            # Используем переданные учетные данные или сохраненные
-            auth_username = username or self.username
-            auth_password = password or self.password
-
-            if not auth_username or not auth_password:
-                logger.error("No credentials provided")
-                return False
-
             url = f"{self.base_url}/ServiceJSON/Login"
             params = {
-                'UserName': auth_username,
-                'Password': auth_password,
+                'UserName': username,
+                'Password': password,
                 'UTCOffset': 180  # Moscow UTC+3
             }
 
-            logger.info(f"🔄 AutoGRAPH login: {auth_username}")
+            print(f"🌐 API CALL URL: {url}")
+            print(f"🔑 CREDENTIALS: UserName={username}, Password={'*' * len(password)}")
+            print(f"⚙️ PARAMS: {params}")
+
+            logger.info(f"🔄 AutoGRAPH login: {username}")
             response = self.session.get(url, params=params, timeout=30)
+
+            print(f"📡 RESPONSE STATUS: {response.status_code}")
+            print(f"📡 RESPONSE TEXT: {response.text}")
+            print(f"📡 RESPONSE HEADERS: {dict(response.headers)}")
 
             if response.status_code == 200:
                 self.token = response.text.strip('"')
                 if self.token and self.token != '""':
-                    logger.info(f"✅ AutoGRAPH login successful")
-                    return True
-            return False
+                    print(f"✅ Login successful, token length: {len(self.token)}")
+                    print(f"✅ Token preview: {self.token[:50]}...")
+                    return self.token  # ИСПРАВЛЕНО: возвращаем токен, а не True
+                else:
+                    print("❌ Invalid credentials - empty token")
+                    return None  # ИСПРАВЛЕНО: возвращаем None при ошибке
+            elif response.status_code == 401:
+                print("❌ Authentication failed - 401 Unauthorized")
+                return None  # ИСПРАВЛЕНО: возвращаем None при ошибке
+            else:
+                print(f"❌ Login failed with status: {response.status_code}")
+                return None  # ИСПРАВЛЕНО: возвращаем None при ошибке
 
         except Exception as e:
-            logger.error(f"❌ AutoGRAPH login error: {e}")
+            print(f"💥 Connection error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None  # ИСПРАВЛЕНО: возвращаем None при ошибке
+
+        except Exception as e:
+            print(f"💥 Connection error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get_schemas(self):
+        """Получение списка схем"""
         if not self.token:
-            if not self.login():
-                return []
+            return []
 
         try:
             url = f"{self.base_url}/ServiceJSON/EnumSchemas"

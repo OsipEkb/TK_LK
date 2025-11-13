@@ -30,7 +30,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <a class="navbar-brand" href="/dashboard/">
                 <i class="fas fa-satellite-dish me-2"></i>Autograph Monitor
             </a>
 
@@ -41,32 +41,32 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard' %}">
+                        <a class="nav-link" href="/dashboard/">
                             <i class="fas fa-tachometer-alt me-1"></i>Дашборд
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'vehicles' %}">
+                        <a class="nav-link" href="/dashboard/vehicles/">
                             <i class="fas fa-truck me-1"></i>Транспорт
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'reports' %}">
+                        <a class="nav-link" href="/dashboard/reports/">
                             <i class="fas fa-chart-bar me-1"></i>Отчеты
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'retransmission' %}">
+                        <a class="nav-link" href="/dashboard/retransmission/">
                             <i class="fas fa-broadcast-tower me-1"></i>Ретрансляция
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'billing' %}">
+                        <a class="nav-link" href="/dashboard/billing/">
                             <i class="fas fa-credit-card me-1"></i>Биллинг
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'support' %}">
+                        <a class="nav-link" href="/dashboard/support/">
                             <i class="fas fa-headset me-1"></i>Поддержка
                         </a>
                     </li>
@@ -83,7 +83,7 @@
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Профиль</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form method="post" action="{% url 'logout' %}" class="d-inline">
+                                    <form method="post" action="/auth/logout/" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="dropdown-item">
                                             <i class="fas fa-sign-out-alt me-2"></i>Выйти
@@ -94,7 +94,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">
+                            <a class="nav-link" href="/auth/login/">
                                 <i class="fas fa-sign-in-alt me-1"></i>Войти
                             </a>
                         </li>
@@ -134,6 +134,11 @@
                         <i class="fas fa-calendar me-1"></i>
                         {{ current_time|date:"d.m.Y" }}
                     </p>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12 text-center">
+                    <small class="text-muted">Статус: <span class="text-success">●</span> Работает</small>
                 </div>
             </div>
         </div>
