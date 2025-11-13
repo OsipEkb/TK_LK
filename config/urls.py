@@ -1,35 +1,31 @@
 from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
+from django.urls import path
 from django.http import HttpResponse
-from users.views import HTMLLoginView
+import os
 
-
-# Простая заглушка для главной страницы
 def home_view(request):
-    return HttpResponse("""
+    return HttpResponse(f"""
     <h1>🚗 Транспортная компания</h1>
     <p>Сайт успешно запущен на Render!</p>
+    <p><strong>DEBUG:</strong> {__import__('django.conf').settings.DEBUG}</p>
+    <p><strong>Host:</strong> {request.get_host()}</p>
+    <p><strong>Path:</strong> {request.path}</p>
+    <hr>
     <p><a href="/auth/login/">Войти в систему</a></p>
     <p><a href="/admin/">Админка</a></p>
+    <p><a href="/health/">Health Check</a></p>
     <hr>
     <p>Статус: Работает ✅</p>
     """)
 
+def health_check(request):
+    return HttpResponse("OK", status=200)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-
-    # ВРЕМЕННО: простая главная страница
     path('', home_view, name='home'),
-
-    # Authentication URLs
+    path('health/', health_check, name='health_check'),
+    path('admin/', admin.site.urls),
     path('auth/', include('users.urls')),
-
-    # API routes
-    path('api/vehicles/', include('vehicles.urls')),
-
-    # HTML routes
     path('dashboard/', include('dashboard.urls')),
+    path('api/vehicles/', include('vehicles.urls')),
 ]

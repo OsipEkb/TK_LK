@@ -1,33 +1,20 @@
 #!/usr/bin/env bash
-# build.sh
-
 set -o errexit
 
-echo "=== Starting build process ==="
+echo "=== Starting Django build ==="
 
-# Установка Poetry если не установлен
-if ! command -v poetry &> /dev/null; then
-    echo "Installing Poetry..."
-    curl -sSL https://install.python-poetry.org | python3 -
-    export PATH="/opt/render/.local/bin:$PATH"
-fi
-
-echo "Poetry version:"
-poetry --version
-
-echo "Installing dependencies..."
+# Установка зависимостей
 poetry install --no-dev --no-interaction --no-ansi
 
-echo "Activating virtual environment..."
+# Активация виртуального окружения
 source $(poetry env info --path)/bin/activate
 
-echo "Making migrations..."
-python manage.py makemigrations --noinput
-
+# Миграции
 echo "Applying migrations..."
 python manage.py migrate --noinput
 
+# Статические файлы
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --clear
 
-echo "=== Build completed successfully ==="
+echo "=== Build complete ==="
