@@ -1,7 +1,13 @@
 # vehicles/urls.py
 from django.urls import path
 from . import views
-from .api_views import VehiclesListAPI, VehicleStatisticsAPI, VehicleChartDataAPI, VehicleHistoricalDataAPI
+from .api_views import (
+    VehiclesListAPI,
+    VehicleStatisticsAPI,
+    VehicleChartDataAPI,
+    VehicleHistoricalDataAPI,
+    DebugAPIView
+)
 
 urlpatterns = [
     # HTML страницы
@@ -16,4 +22,7 @@ urlpatterns = [
     path('api/statistics/', VehicleStatisticsAPI.as_view(), name='api_vehicle_statistics'),
     path('api/chart-data/', VehicleChartDataAPI.as_view(), name='api_vehicle_chart_data'),
     path('api/historical-data/', VehicleHistoricalDataAPI.as_view(), name='api_vehicle_historical_data'),
+
+    # ДИАГНОСТИЧЕСКИЙ endpoint
+    path('api/debug/', DebugAPIView.as_view(), name='api_debug'),
 ]

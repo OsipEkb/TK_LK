@@ -1,10 +1,9 @@
-# dashboard/api_views.py
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from vehicles.services import AutoGraphService
+from .services import AutoGraphDashboardService  # ИМПОРТИРУЕМ ИЗ ТЕКУЩЕЙ ДИРЕКТОРИИ
 import logging
 from datetime import datetime, timedelta
 import dateutil.parser
@@ -101,7 +100,7 @@ class DashboardDataAPI(View):
     def get(self, request):
         try:
             print("🚀 DASHBOARD API CALLED")
-            service = AutoGraphService()
+            service = AutoGraphDashboardService()  # ИСПОЛЬЗУЕМ НАШ НОВЫЙ СЕРВИС
             if service.login("Osipenko", "Osipenko"):
                 schemas = service.get_schemas()
                 if schemas:
@@ -165,7 +164,7 @@ class VehicleDetailAPI(View):
 
     def get(self, request, vehicle_id):
         try:
-            service = AutoGraphService()
+            service = AutoGraphDashboardService()  # ИСПОЛЬЗУЕМ НАШ НОВЫЙ СЕРВИС
             if service.login("Osipenko", "Osipenko"):
                 schemas = service.get_schemas()
                 if schemas:

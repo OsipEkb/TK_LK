@@ -3,7 +3,8 @@ import requests
 import logging
 import re
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -98,518 +99,6 @@ class AutoGraphService:
             logger.error(f"❌ Error getting vehicles: {e}")
             return {}
 
-    def get_vehicle_properties(self, schema_id, device_ids, at_date=None):
-        """Получение свойств ТС с поддержкой исторических данных"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetProperties"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': ','.join(device_ids)
-            }
-
-            if at_date:
-                params['at'] = at_date
-                logger.info(f"🔄 Getting properties for {len(device_ids)} devices at {at_date}")
-            else:
-                logger.info(f"🔄 Getting current properties for {len(device_ids)} devices")
-
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got properties for {len(device_ids)} devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get properties: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting properties: {e}")
-            return {}
-
-    def get_online_info(self, schema_id, device_ids):
-        """Получение онлайн информации по устройствам"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetOnlineInfo"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': ','.join(device_ids)
-            }
-
-            logger.info(f"🔄 Getting online info for {len(device_ids)} devices")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got online info for devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get online info: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting online info: {e}")
-            return {}
-
-    def get_online_info_all(self, schema_id):
-        """Получение информации о последнем местоположении всех устройств"""
-        if not self.token:
-            logger.error("No token available for online info")
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetOnlineInfoAll"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'finalParams': 'Speed,FuelLevel,EngineHours,Latitude,Longitude',
-                'mchp': '0'
-            }
-
-            logger.info(f"🔄 Getting online info for all devices in schema: {schema_id}")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got online info for {len(data)} devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get online info: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting online info: {e}")
-            return {}
-
-    def parse_online_data(self, online_info, vehicle_id):
-        """Парсинг онлайн данных для конкретного ТС"""
-        try:
-            if not online_info:
-                return None
-
-            vehicle_info = online_info.get(vehicle_id, {})
-            if not vehicle_info:
-                return None
-
-            # Извлекаем скорость
-            speed = vehicle_info.get('Speed', 0)
-            if speed:
-                try:
-                    speed = float(speed)
-                except (ValueError, TypeError):
-                    speed = 0
-
-            # Извлекаем координаты
-            last_position = vehicle_info.get('LastPosition', {})
-            latitude = last_position.get('Lat')
-            longitude = last_position.get('Lng')
-
-            # Извлекаем время последнего обновления
-            last_update = vehicle_info.get('DT') or vehicle_info.get('LastData')
-
-            # Извлекаем адрес
-            address = vehicle_info.get('Address', '')
-
-            # Извлекаем финальные параметры
-            final_params = vehicle_info.get('Final', {})
-
-            # Поиск топлива
-            fuel_level = None
-
-            # Вариант 1: TankMainFuelLevel (основной бак)
-            if 'TankMainFuelLevel' in final_params:
-                fuel_level = final_params['TankMainFuelLevel']
-
-            # Вариант 2: FL1, FL2 (датчики уровня топлива)
-            if fuel_level is None:
-                fl1 = final_params.get('FL1')
-                fl2 = final_params.get('FL2')
-                if fl1 is not None and fl2 is not None:
-                    fuel_level = fl1 + fl2  # Суммируем оба бака
-                elif fl1 is not None:
-                    fuel_level = fl1
-                elif fl2 is not None:
-                    fuel_level = fl2
-
-            # Вариант 3: FuelLevel (общий уровень)
-            if fuel_level is None:
-                fuel_level = final_params.get('FuelLevel')
-
-            # Вариант 4: Ищем в других полях
-            if fuel_level is None:
-                for key, value in final_params.items():
-                    if 'fuel' in key.lower() or 'tank' in key.lower():
-                        if isinstance(value, (int, float)) and value > 0:
-                            fuel_level = value
-                            break
-
-            engine_hours = final_params.get('EngineHours')
-
-            # Парсим числовые значения
-            if fuel_level:
-                try:
-                    fuel_level = float(fuel_level)
-                    fuel_level = round(fuel_level, 1)
-                except (ValueError, TypeError):
-                    fuel_level = None
-
-            if engine_hours:
-                try:
-                    engine_hours = float(engine_hours)
-                except (ValueError, TypeError):
-                    engine_hours = None
-
-            result = {
-                'speed': speed,
-                'latitude': latitude,
-                'longitude': longitude,
-                'last_update': last_update,
-                'address': address,
-                'fuel_level': fuel_level,
-                'engine_hours': engine_hours,
-                'is_online': True
-            }
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ Error parsing online data for {vehicle_id}: {e}")
-            return None
-
-    def _extract_license_plate_from_name(self, name):
-        """Извлечение госномера из имени ТС"""
-        try:
-            if not name:
-                return None
-
-            patterns = [
-                r'(\d{3}\s*[A-ZА-Я]{2}\s*\d{2,3})',
-                r'([A-ZА-Я]{1,2}\s*\d{3,4}\s*[A-ZА-Я]{1,2})',
-                r'(\d{2,3}\s*[A-ZА-Я]{1,2}\s*\d{2,3})',
-                r'([A-ZА-Я]{2}\s*\d{3})',
-                r'(\d{3}\s*[A-ZА-Я]{2})',
-            ]
-
-            for pattern in patterns:
-                match = re.search(pattern, name.upper())
-                if match:
-                    license_plate = match.group(1).strip()
-                    if len(license_plate) >= 5:
-                        return license_plate
-
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ Error extracting license plate from name: {e}")
-            return None
-
-    def extract_license_plate_enhanced(self, vehicle_data, properties_data=None):
-        """УЛУЧШЕННОЕ извлечение госномера"""
-        try:
-            vehicle_id = str(vehicle_data.get('ID'))
-            vehicle_name = vehicle_data.get('Name', '')
-
-            # 1. Пробуем извлечь из properties_data (GetPropertiesTable)
-            if properties_data and isinstance(properties_data, dict):
-                if vehicle_id in properties_data:
-                    vehicle_props = properties_data[vehicle_id]
-                    if isinstance(vehicle_props, list):
-                        for prop in vehicle_props:
-                            if prop.get('Name') == 'VehicleRegNumber':
-                                values = prop.get('Values', [])
-                                if values and len(values) > 0:
-                                    license_plate = values[0].get('Value', '').strip()
-                                    if license_plate:
-                                        logger.info(f"✅ Found license plate in VehicleRegNumber: {license_plate}")
-                                        return license_plate
-
-            # 2. Пробуем извлечь из свойств vehicle_data (EnumDevices)
-            properties = vehicle_data.get('properties', [])
-            for prop in properties:
-                if prop.get('name') in ['LicensePlate', 'Госномер', 'Номер', 'VehicleRegNumber']:
-                    value = prop.get('value', '')
-                    if value and value.strip():
-                        license_plate = value.strip()
-                        logger.info(f"✅ Found license plate in vehicle properties: {license_plate}")
-                        return license_plate
-
-            # 3. Пробуем извлечь из имени ТС (fallback)
-            if vehicle_name:
-                license_plate = self._extract_license_plate_from_name(vehicle_name)
-                if license_plate:
-                    logger.info(f"✅ Extracted license plate from name: {license_plate}")
-                    return license_plate
-
-            logger.warning(f"⚠️ No license plate found for vehicle: {vehicle_name}")
-            return vehicle_name
-
-        except Exception as e:
-            logger.error(f"❌ Error in enhanced license plate extraction: {e}")
-            return vehicle_data.get('Name', '')
-
-    def get_enhanced_dashboard_summary(self, schema_id):
-        """УЛУЧШЕННАЯ версия получения данных для дашборда со свойствами"""
-        if not self.token:
-            logger.error("❌ No token available")
-            return None
-
-        try:
-            logger.info("🔄 Starting enhanced dashboard summary...")
-
-            # Получаем все ТС
-            vehicles_data = self.get_vehicles(schema_id)
-            logger.info(f"📊 Got vehicles data: {len(vehicles_data.get('Items', []))} vehicles")
-
-            if not vehicles_data or 'Items' not in vehicles_data:
-                logger.error("❌ No vehicles data received")
-                return None
-
-            # Получаем свойства для всех ТС
-            device_ids = [str(vehicle.get('ID')) for vehicle in vehicles_data['Items']]
-            logger.info(f"🔄 Getting properties for {len(device_ids)} devices")
-
-            properties_data = self.get_vehicle_properties_table(schema_id, device_ids)
-            logger.info(f"📊 Got properties data: {len(properties_data)} devices with properties")
-
-            # Получаем онлайн данные
-            online_info = self.get_online_info_with_fuel(schema_id, device_ids)
-
-            if not online_info:
-                online_info = self.get_online_info(schema_id, device_ids)
-
-            if not online_info:
-                online_info = self.get_online_info_all(schema_id)
-
-            logger.info(f"📊 Final online info: {len(online_info)} devices online")
-
-            total_vehicles = len(vehicles_data['Items'])
-            online_vehicles = 0
-            vehicles_with_data = []
-
-            for vehicle in vehicles_data['Items']:
-                vehicle_id = str(vehicle.get('ID'))
-                vehicle_name = vehicle.get('Name', 'Unknown')
-
-                # Извлекаем госномер
-                license_plate = self.extract_license_plate_enhanced(vehicle, properties_data)
-
-                # Парсим онлайн данные
-                online_data_parsed = self.parse_online_data(online_info, vehicle_id)
-                is_online = online_data_parsed is not None
-
-                if is_online:
-                    online_vehicles += 1
-
-                vehicle_data = {
-                    'id': vehicle_id,
-                    'name': vehicle_name,
-                    'license_plate': license_plate or '',
-                    'serial': vehicle.get('Serial'),
-                    'is_online': is_online,
-                    'speed': online_data_parsed.get('speed', 0) if online_data_parsed else 0,
-                    'latitude': online_data_parsed.get('latitude') if online_data_parsed else None,
-                    'longitude': online_data_parsed.get('longitude') if online_data_parsed else None,
-                    'last_update': online_data_parsed.get('last_update') if online_data_parsed else None,
-                    'address': online_data_parsed.get('address', '') if online_data_parsed else '',
-                    'fuel_level': online_data_parsed.get('fuel_level') if online_data_parsed else None,
-                    'engine_hours': online_data_parsed.get('engine_hours') if online_data_parsed else None
-                }
-
-                vehicles_with_data.append(vehicle_data)
-
-                fuel_display = vehicle_data['fuel_level'] if vehicle_data['fuel_level'] is not None else "нет данных"
-                logger.info(f"✅ Vehicle data: {vehicle_name} - Fuel: {fuel_display} - Online: {is_online}")
-
-            summary = {
-                'total_vehicles': total_vehicles,
-                'online_vehicles': online_vehicles,
-                'offline_vehicles': total_vehicles - online_vehicles,
-                'vehicles': vehicles_with_data,
-                'last_update': self.get_current_timestamp()
-            }
-
-            logger.info(f"📈 Enhanced dashboard summary: {online_vehicles}/{total_vehicles} online")
-            return summary
-
-        except Exception as e:
-            logger.error(f"❌ Error getting enhanced dashboard summary: {e}")
-            return None
-
-    def get_dashboard_summary(self, schema_id):
-        """Получение сводных данных для дашборда"""
-        return self.get_enhanced_dashboard_summary(schema_id)
-
-    def get_vehicle_detailed_info(self, schema_id, device_id):
-        """Получение детальной информации по ТС включая свойства"""
-        if not self.token:
-            return None
-
-        try:
-            # Получаем базовую информацию
-            vehicles_data = self.get_vehicles(schema_id)
-            vehicle_info = None
-
-            for vehicle in vehicles_data.get('Items', []):
-                if str(vehicle.get('ID')) == device_id:
-                    vehicle_info = vehicle
-                    break
-
-            if not vehicle_info:
-                return None
-
-            # Получаем свойства
-            properties = self.get_vehicle_properties(schema_id, [device_id])
-
-            # Получаем онлайн данные
-            online_data = self.get_online_info(schema_id, [device_id])
-
-            # Извлекаем госномер
-            license_plate = self.extract_license_plate_enhanced(vehicle_info, properties)
-
-            # Формируем ответ
-            detailed_info = {
-                'basic_info': vehicle_info,
-                'properties': properties,
-                'online_data': online_data,
-                'license_plate': license_plate
-            }
-
-            return detailed_info
-
-        except Exception as e:
-            logger.error(f"❌ Error getting detailed vehicle info: {e}")
-            return None
-
-    def get_current_timestamp(self):
-        """Текущее время для меток обновления"""
-        from django.utils import timezone
-        return timezone.now().isoformat()
-
-    def get_vehicle_properties_table(self, schema_id, device_ids):
-        """Получение свойств ТС в виде таблицы"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetPropertiesTable"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': ','.join(device_ids)
-            }
-
-            logger.info(f"🔄 Getting properties table for {len(device_ids)} devices")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got properties table for {len(device_ids)} devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get properties table: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting properties table: {e}")
-            return {}
-
-    def get_online_info_with_fuel(self, schema_id, device_ids):
-        """Получение онлайн информации с параметрами топлива"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetOnlineInfo"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': ','.join(device_ids),
-                'finalParams': 'TankMainFuelLevel,FL1,FL2,FuelLevel,Speed,Latitude,Longitude,Address,EngineHours'
-            }
-
-            logger.info(f"🔄 Getting online info with fuel params for {len(device_ids)} devices")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got online info with fuel params for {len(data)} devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get online info with fuel: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting online info with fuel: {e}")
-            return {}
-
-    def get_vehicle_parameters(self, schema_id, device_id):
-        """Получение доступных параметров для ТС"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/EnumParameters"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': device_id
-            }
-
-            logger.info(f"🔄 Getting parameters for device: {device_id}")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got parameters for device {device_id}")
-                return data
-            else:
-                logger.error(f"❌ Failed to get parameters: {response.status_code}")
-                return {}
-
-        except Exception as e:
-            logger.error(f"❌ Error getting parameters: {e}")
-            return {}
-
-    def get_trip_tables(self, schema_id, device_id, start_date, end_date, parameters):
-        """Получение табличных данных для графиков"""
-        if not self.token:
-            return None
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/GetTripTables"
-            params = {
-                'session': self.token,
-                'schemaID': schema_id,
-                'IDs': device_id,
-                'SD': start_date,
-                'ED': end_date,
-                'onlineParams': ','.join(parameters),
-                'tripSplitterIndex': -1
-            }
-
-            logger.info(f"🔄 Getting trip tables for {device_id} with params: {parameters}")
-            response = self.session.get(url, params=params, timeout=60)
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got trip tables data for {device_id}")
-                return data
-            else:
-                logger.error(f"❌ Failed to get trip tables: {response.status_code}")
-                return None
-
-        except Exception as e:
-            logger.error(f"❌ Error getting trip tables: {e}")
-            return None
-
     def get_trips_total(self, schema_id, device_id, start_date, end_date):
         """Получение суммарных данных по рейсам"""
         if not self.token:
@@ -674,8 +163,6 @@ class AutoGraphService:
 
     def format_date_for_api(self, date_string, include_time=False):
         """Форматирование даты для API AutoGRAPH"""
-        from datetime import datetime
-
         try:
             if include_time:
                 dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
@@ -686,3 +173,300 @@ class AutoGraphService:
         except Exception as e:
             logger.error(f"❌ Error formatting date: {e}")
             return date_string
+
+    def _extract_license_plate_from_name(self, name):
+        """Извлечение госномера из имени ТС"""
+        try:
+            if not name:
+                return None
+
+            patterns = [
+                r'(\d{3}\s*[A-ZА-Я]{2}\s*\d{2,3})',
+                r'([A-ZА-Я]{1,2}\s*\d{3,4}\s*[A-ZА-Я]{1,2})',
+                r'(\d{2,3}\s*[A-ZА-Я]{1,2}\s*\d{2,3})',
+                r'([A-ZА-Я]{2}\s*\d{3})',
+                r'(\d{3}\s*[A-ZА-Я]{2})',
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, name.upper())
+                if match:
+                    license_plate = match.group(1).strip()
+                    if len(license_plate) >= 5:
+                        return license_plate
+
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ Error extracting license plate from name: {e}")
+            return None
+
+    def extract_license_plate_enhanced(self, vehicle_data):
+        """УЛУЧШЕННОЕ извлечение госномера"""
+        try:
+            vehicle_name = vehicle_data.get('Name', '')
+
+            # Пробуем извлечь из свойств vehicle_data
+            properties = vehicle_data.get('Properties', [])
+            for prop in properties:
+                if prop.get('Name') in ['VehicleRegNumber', 'LicensePlate', 'Госномер']:
+                    value = prop.get('Value', '')
+                    if value and isinstance(value, str) and value.strip():
+                        license_plate = value.strip()
+                        logger.info(f"✅ Found license plate in properties: {license_plate}")
+                        return license_plate
+
+            # Пробуем извлечь из имени ТС (fallback)
+            if vehicle_name:
+                license_plate = self._extract_license_plate_from_name(vehicle_name)
+                if license_plate:
+                    logger.info(f"✅ Extracted license plate from name: {license_plate}")
+                    return license_plate
+
+            logger.warning(f"⚠️ No license plate found for vehicle: {vehicle_name}")
+            return vehicle_name
+
+        except Exception as e:
+            logger.error(f"❌ Error in enhanced license plate extraction: {e}")
+            return vehicle_data.get('Name', '')
+
+
+class AutoGraphHistoricalService:
+    def __init__(self):
+        self.base_service = AutoGraphService()
+
+    def get_vehicle_historical_statistics(self, vehicle_id, schema_id, start_date, end_date):
+        """Получение реальных исторических данных по ТС"""
+        try:
+            logger.info(f"🔄 Getting historical data for {vehicle_id} from {start_date} to {end_date}")
+
+            # Форматируем даты для API
+            start_date_fmt = self.format_date_for_api(start_date)
+            end_date_fmt = self.format_date_for_api(end_date)
+
+            # Получаем данные по рейсам
+            trips_data = self.base_service.get_trips_total(schema_id, vehicle_id, start_date_fmt, end_date_fmt)
+
+            if not trips_data:
+                logger.warning(f"⚠️ No trips data for {vehicle_id}")
+                return None
+
+            vehicle_data = trips_data.get(vehicle_id, {})
+            if not vehicle_data:
+                return None
+
+            return self.transform_historical_data(vehicle_data, vehicle_id)
+
+        except Exception as e:
+            logger.error(f"❌ Error getting historical statistics: {e}")
+            return None
+
+    def transform_historical_data(self, raw_data, vehicle_id):
+        """Преобразование сырых данных в формат для дашборда"""
+        try:
+            trips = raw_data.get('Trips', [])
+            if not trips:
+                return None
+
+            # Берем первый рейс (можно агрегировать по всем)
+            trip = trips[0]
+            total = trip.get('Total', {})
+
+            # Основная статистика
+            statistics = {
+                'total_distance': round(total.get('TotalDistance', 0), 2),
+                'total_fuel_consumption': round(total.get('Engine1FuelConsum', 0), 2),
+                'total_engine_hours': total.get('Engine1Motohours', '00:00:00'),
+                'total_move_duration': total.get('MoveDuration', '00:00:00'),
+                'total_park_duration': total.get('ParkDuration', '00:00:00'),
+                'max_speed': round(total.get('MaxSpeed', 0), 2),
+                'average_speed': round(total.get('AverageSpeed', 0), 2),
+                'fuel_efficiency': round(total.get('Engine1FuelConsumMPer100km', 0), 2),
+                'parking_count': total.get('ParkCount', 0),
+                'overspeed_count': total.get('OverspeedCount', 0),
+            }
+
+            # Топливная аналитика
+            fuel_analytics = {
+                'current_level': round(total.get('TankMainFuelLevel Last', 0), 2),
+                'refills_count': total.get('TankMainFuelUpCount', 0),
+                'refills_volume': round(total.get('TankMainFuelUpVol Diff', 0), 2),
+                'consumption_per_motor_hour': round(total.get('Engine1FuelConsumMPerMH', 0), 2),
+                'total_fuel_volume': round(
+                    total.get('TankMainFuelLevel Last', 0) + total.get('TankMainFuelUpVol Diff', 0), 2),
+            }
+
+            # Нарушения
+            violations = {
+                'overspeed_duration': self._find_overspeed_duration(trip.get('Stages', [])),
+                'penalty_points': round(total.get('DQPoints Diff', 0), 2),
+                'overspeed_points': round(total.get('DQOverspeedPoints Diff', 0), 2),
+            }
+
+            # Статусы оборудования
+            equipment_status = {
+                'ignition': raw_data.get('Total', {}).get('DIgnition Last', False),
+                'gsm_signal': raw_data.get('Total', {}).get('DGSMAvailable Last', False),
+                'gps_signal': raw_data.get('Total', {}).get('DGPSAvailable Last', False),
+                'power': raw_data.get('Total', {}).get('Power Last', False),
+                'movement': self._get_movement_status(raw_data.get('Total', {}).get('Motion Last', 1))
+            }
+
+            # Локация
+            location = {
+                'address': raw_data.get('Total', {}).get('CurrLocation', 'Не определено'),
+                'coordinates': {
+                    'lat': trip.get('PointEnd', {}).get('Lat', 0),
+                    'lng': trip.get('PointEnd', {}).get('Lng', 0)
+                },
+                'last_update': raw_data.get('_LastDataLocal', '')
+            }
+
+            # Генерация временных рядов для графиков
+            time_series = self.generate_time_series_from_trips(trips)
+
+            return {
+                'summary': statistics,
+                'fuel_analytics': fuel_analytics,
+                'violations': violations,
+                'equipment_status': equipment_status,
+                'location': location,
+                'time_series': time_series,
+                'vehicle_id': vehicle_id,
+                'vehicle_name': raw_data.get('Name', ''),
+                'license_plate': raw_data.get('VRN', ''),
+                'data_source': 'autograph_real',
+                'period': {
+                    'start': trip.get('SD'),
+                    'end': trip.get('ED')
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error transforming historical data: {e}")
+            return None
+
+    def _find_overspeed_duration(self, stages):
+        """Находит длительность превышений скорости"""
+        for stage in stages:
+            if stage.get('Name') == 'Overspeed':
+                return stage.get('Total', {}).get('TotalDuration', '00:00:00')
+        return '00:00:00'
+
+    def _get_movement_status(self, motion_code):
+        """Преобразует код движения в текст"""
+        motion_map = {1: 'parking', 2: 'moving', 3: 'flying'}
+        return motion_map.get(motion_code, 'unknown')
+
+    def generate_time_series_from_trips(self, trips):
+        """Генерация временных рядов из данных рейсов"""
+        time_series = []
+
+        for trip in trips:
+            total = trip.get('Total', {})
+            timestamp = trip.get('_SD')  # Время начала рейса
+
+            # Расчет общего объема топлива (текущий уровень + израсходованный)
+            current_fuel = total.get('TankMainFuelLevel Last', 0)
+            consumed_fuel = total.get('Engine1FuelConsum', 0)
+            total_fuel_volume = current_fuel + consumed_fuel
+
+            time_series.append({
+                'timestamp': timestamp,
+                'distance': round(total.get('TotalDistance', 0), 2),
+                'fuel_consumption': round(total.get('Engine1FuelConsum', 0), 2),
+                'engine_hours': self.duration_to_hours(total.get('Engine1Motohours', '00:00:00')),
+                'move_duration': self.duration_to_hours(total.get('MoveDuration', '00:00:00')),
+                'max_speed': round(total.get('MaxSpeed', 0), 2),
+                'fuel_level': round(total.get('TankMainFuelLevel Last', 0), 2),
+                'total_fuel_volume': round(total_fuel_volume, 2),
+            })
+
+        return time_series
+
+    def duration_to_hours(self, duration_str):
+        """Конвертирует строку длительности в часы"""
+        try:
+            if not duration_str:
+                return 0
+            parts = duration_str.split(':')
+            return int(parts[0]) + int(parts[1]) / 60 + int(parts[2]) / 3600
+        except:
+            return 0
+
+    def format_date_for_api(self, date_string):
+        """Форматирование даты для API"""
+        from datetime import datetime
+        try:
+            dt = datetime.strptime(date_string, '%Y-%m-%d')
+            return dt.strftime('%Y%m%d')
+        except:
+            return date_string
+
+    def get_historical_time_series(self, schema_id, vehicle_id, start_date, end_date, parameters):
+        """Получение детальных временных рядов для графиков"""
+        try:
+            if not self.base_service.login("Osipenko", "Osipenko"):
+                return None
+
+            start_date_fmt = self.format_date_for_api(start_date)
+            end_date_fmt = self.format_date_for_api(end_date)
+
+            # Получаем данные по рейсам
+            trips_data = self.base_service.get_trips_total(schema_id, vehicle_id, start_date_fmt, end_date_fmt)
+
+            if not trips_data:
+                return self.generate_mock_time_series(start_date, end_date)
+
+            return self.transform_to_time_series(trips_data.get(vehicle_id, {}), parameters)
+
+        except Exception as e:
+            logger.error(f"❌ Error getting historical time series: {e}")
+            return self.generate_mock_time_series(start_date, end_date)
+
+    def transform_to_time_series(self, vehicle_data, parameters):
+        """Трансформация данных в временные ряды"""
+        trips = vehicle_data.get('Trips', [])
+        time_series = []
+
+        for trip in trips:
+            total = trip.get('Total', {})
+            point_data = {
+                'timestamp': trip.get('_SD'),
+                'distance': round(total.get('TotalDistance', 0), 2),
+                'fuel_consumption': round(total.get('Engine1FuelConsum', 0), 2),
+                'max_speed': round(total.get('MaxSpeed', 0), 2),
+                'engine_hours': self.duration_to_hours(total.get('Engine1Motohours', '00:00:00')),
+                'fuel_level': round(total.get('TankMainFuelLevel Last', 0), 2),
+                'total_fuel_volume': round(total.get('TankMainFuelLevel Last', 0) + total.get('Engine1FuelConsum', 0),
+                                           2),
+            }
+            time_series.append(point_data)
+
+        return time_series
+
+    def generate_mock_time_series(self, start_date, end_date):
+        """Генерация тестовых временных рядов"""
+        from datetime import datetime, timedelta
+        import random
+
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        days_diff = (end - start).days + 1
+
+        time_series = []
+        current = start
+
+        for i in range(days_diff * 24):  # Почасовые данные
+            time_series.append({
+                'timestamp': current.strftime('%Y-%m-%d %H:%M:%S'),
+                'distance': round(random.uniform(5, 50), 2),
+                'fuel_consumption': round(random.uniform(2, 15), 2),
+                'max_speed': round(random.uniform(30, 90), 2),
+                'engine_hours': round(random.uniform(0.5, 2.5), 2),
+                'fuel_level': round(random.uniform(100, 500), 2),
+                'total_fuel_volume': round(random.uniform(200, 600), 2),
+            })
+            current += timedelta(hours=1)
+
+        return time_series
