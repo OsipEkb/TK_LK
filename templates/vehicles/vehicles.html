@@ -695,43 +695,43 @@ async function loadStatistics() {
 
     try {
         showGlobalLoading(true);
-        console.log('🔄 Loading historical statistics...');
 
-        const csrfToken = getCSRFToken();
-        console.log('📡 CSRF Token:', csrfToken ? 'Found' : 'Not found');
+        // Формируем URL с GET параметрами
+        const params = new URLSearchParams({
+            vehicle_id: vehicleId,
+            schema_id: appState.selectedVehicle?.schema_id || 'fad66447-fe18-4a2a-a7b9-945eab775fda',
+            start_date: dateFrom,
+            end_date: dateTo,
+            time_step: appState.currentPeriod.step
+        });
 
-        const response = await fetch('/vehicles/api/statistics/', {
-            method: 'POST',
+        const url = `/vehicles/api/statistics/?${params}`;
+        console.log('📡 GET Request to:', url);
+
+        const response = await fetch(url, {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                vehicle_id: vehicleId,
-                schema_id: appState.selectedVehicle?.schema_id || 'fad66447-fe18-4a2a-a7b9-945eab775fda',
-                start_date: dateFrom,
-                end_date: dateTo,
-                time_step: appState.currentPeriod.step
-            })
+            }
         });
 
         console.log('📡 Response status:', response.status);
 
         if (response.ok) {
             const data = await response.json();
-            console.log('📊 Statistics data received:', data);
+            console.log('✅ Statistics data received:', data);
 
             if (data.success) {
                 appState.statistics = data.statistics;
                 displayStatistics(data.statistics);
                 updateCompositeChart();
-                showNotification(`Исторические данные загружены за период ${dateFrom} - ${dateTo}`, 'success');
+                showNotification(`Исторические данные за ${data.statistics.vehicle_name} загружены`, 'success');
             } else {
                 throw new Error(data.error || 'Неизвестная ошибка от сервера');
             }
-        } else if (response.status === 403) {
-            throw new Error('Ошибка доступа (CSRF). Пожалуйста, обновите страницу.');
         } else {
+            let errorText = await response.text();
+            console.error('❌ Full error response:', errorText);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -741,6 +741,58 @@ async function loadStatistics() {
     } finally {
         showGlobalLoading(false);
     }
+}
+
+// Обновите функцию displayStatistics для показа имени ТС
+function displayStatistics(statistics) {
+    // Показываем секции
+    document.getElementById('statisticsSection').style.display = 'block';
+    document.getElementById('chartsSection').style.display = 'block';
+
+    // Обновляем основную статистику
+    const summary = statistics.summary;
+    document.getElementById('totalDistance').textContent = `${summary.total_distance} км`;
+    document.getElementById('totalFuel').textContent = `${summary.total_fuel_consumption} л`;
+    document.getElementById('engineHours').textContent = summary.total_engine_hours;
+    document.getElementById('moveDuration').textContent = summary.total_move_duration;
+    document.getElementById('parkDuration').textContent = summary.total_park_duration;
+    document.getElementById('maxSpeed').textContent = `${summary.max_speed} км/ч`;
+
+    // Обновляем информацию о периоде с указанием ТС
+    const periodInfo = `ТС: ${statistics.vehicle_name} | Период: ${document.getElementById('dateFrom').value} - ${document.getElementById('dateTo').value} (${appState.currentPeriod.step === 'hour' ? 'почасово' : appState.currentPeriod.step === 'day' ? 'ежедневно' : 'еженедельно'})`;
+    document.getElementById('periodInfo').textContent = periodInfo;
+
+    // Обновляем детальную статистику
+    updateDetailedStats(summary);
+
+    // Обновляем информацию о ТС
+    updateVehicleInfoWithStatistics(statistics);
+}
+
+function updateVehicleInfoWithStatistics(statistics) {
+    const container = document.getElementById('vehicleInfo');
+    const vehicle = appState.selectedVehicle;
+
+    const info = `
+        <div class="mb-2">
+            <strong>${escapeHtml(statistics.vehicle_name || vehicle.name)}</strong>
+        </div>
+        ${vehicle.license_plate ? `<div class="mb-1"><small class="text-muted">Госномер:</small> ${escapeHtml(vehicle.license_plate)}</div>` : ''}
+        ${vehicle.serial ? `<div class="mb-1"><small class="text-muted">Серийный номер:</small> ${escapeHtml(vehicle.serial)}</div>` : ''}
+        <div class="mb-1">
+            <small class="text-muted">Тип анализа:</small>
+            <span class="badge historical-badge">Исторические данные</span>
+        </div>
+        <div class="mb-1">
+            <small class="text-muted">Источник:</small>
+            <span class="badge bg-success">${statistics.data_source || 'vehicle_specific'}</span>
+        </div>
+        <div class="mt-3">
+            <small class="text-muted">Данные загружены для конкретного ТС</small>
+        </div>
+    `;
+
+    container.innerHTML = info;
 }
 
 function displayStatistics(statistics) {

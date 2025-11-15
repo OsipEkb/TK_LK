@@ -98,6 +98,13 @@ class VehiclesListAPI(APIView):
                 'license_plate': 'Н 776 ВК 186',
                 'serial': '261869',
                 'schema_id': 'fad66447-fe18-4a2a-a7b9-945eab775fda'
+            },
+            {
+                'id': '8570f4fd-ee21-431c-8412-9b4b54e955af',
+                'name': '336 Freightliner',
+                'license_plate': 'Н 336 ВК 186',
+                'serial': '378356',
+                'schema_id': 'fad66447-fe18-4a2a-a7b9-945eab775fda'
             }
         ]
 
@@ -105,22 +112,22 @@ class VehiclesListAPI(APIView):
 class VehicleStatisticsAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        """API для получения статистики по КОНКРЕТНОМУ ТС"""
+    def get(self, request):
+        """GET метод для получения статистики по КОНКРЕТНОМУ ТС"""
         try:
-            data = request.data
-            vehicle_id = data.get('vehicle_id')
-            schema_id = data.get('schema_id')
-            start_date = data.get('start_date')
-            end_date = data.get('end_date')
-            time_step = data.get('time_step', 'hour')
+            # Получаем параметры из GET запроса
+            vehicle_id = request.GET.get('vehicle_id')
+            schema_id = request.GET.get('schema_id')
+            start_date = request.GET.get('start_date')
+            end_date = request.GET.get('end_date')
+            time_step = request.GET.get('time_step', 'hour')
 
-            logger.info(f"🔄 Statistics for SPECIFIC vehicle: {vehicle_id} from {start_date} to {end_date}")
+            logger.info(f"🔄 GET Statistics for SPECIFIC vehicle: {vehicle_id} from {start_date} to {end_date}")
 
             if not all([vehicle_id, schema_id, start_date, end_date]):
                 return Response({
                     'success': False,
-                    'error': 'Отсутствуют обязательные параметры'
+                    'error': 'Отсутствуют обязательные параметры: vehicle_id, schema_id, start_date, end_date'
                 }, status=400)
 
             # Получаем информацию о выбранном ТС
@@ -128,7 +135,7 @@ class VehicleStatisticsAPI(APIView):
             if not vehicle_info:
                 return Response({
                     'success': False,
-                    'error': 'ТС не найдено'
+                    'error': f'ТС с ID {vehicle_id} не найдено'
                 }, status=404)
 
             # Генерируем статистику ТОЛЬКО для выбранного ТС
@@ -157,8 +164,6 @@ class VehicleStatisticsAPI(APIView):
 
     def get_vehicle_info(self, vehicle_id):
         """Получение информации о конкретном ТС"""
-        # Здесь должна быть логика получения реальных данных о ТС
-        # Пока используем mock данные
         vehicles_data = {
             '11804e75-d2c3-4f2b-9107-5ad899adfe12': {
                 'id': '11804e75-d2c3-4f2b-9107-5ad899adfe12',
@@ -183,6 +188,22 @@ class VehicleStatisticsAPI(APIView):
                 'serial': '378356',
                 'type': 'Грузовой',
                 'model': 'Freightliner'
+            },
+            'mock-4': {
+                'id': 'mock-4',
+                'name': '716 Freightliner',
+                'license_plate': 'Н 716 ВК 186',
+                'serial': '379847',
+                'type': 'Грузовой',
+                'model': 'Freightliner'
+            },
+            'mock-5': {
+                'id': 'mock-5',
+                'name': '031 Freightliner',
+                'license_plate': 'Н 031 ВК 186',
+                'serial': '380151',
+                'type': 'Грузовой',
+                'model': 'Freightliner'
             }
         }
 
@@ -198,14 +219,14 @@ class VehicleStatisticsAPI(APIView):
 
         # Базовые данные, зависящие от конкретного ТС
         base_stats = {
-            'total_distance': round(500 + (vehicle_hash % 500), 1),  # Уникальный пробег для каждого ТС
-            'total_fuel_consumption': round(200 + (vehicle_hash % 200), 1),
+            'total_distance': round(400 + (vehicle_hash % 600), 1),
+            'total_fuel_consumption': round(150 + (vehicle_hash % 250), 1),
             'total_engine_hours': self.generate_vehicle_hours(vehicle_hash),
             'total_move_duration': self.generate_vehicle_duration(vehicle_hash, 0.7),
             'total_park_duration': self.generate_vehicle_duration(vehicle_hash, 0.3),
-            'max_speed': round(80 + (vehicle_hash % 30), 1),
-            'average_speed': round(50 + (vehicle_hash % 30), 1),
-            'fuel_efficiency': round(30 + (vehicle_hash % 20), 1),
+            'max_speed': round(75 + (vehicle_hash % 40), 1),
+            'average_speed': round(45 + (vehicle_hash % 35), 1),
+            'fuel_efficiency': round(25 + (vehicle_hash % 25), 1),
         }
 
         # Генерация временных рядов для конкретного ТС
@@ -221,14 +242,14 @@ class VehicleStatisticsAPI(APIView):
 
     def generate_vehicle_hours(self, vehicle_hash):
         """Генерация часов работы для конкретного ТС"""
-        base_hours = 30 + (vehicle_hash % 50)
+        base_hours = 25 + (vehicle_hash % 60)
         hours = int(base_hours)
         minutes = int((base_hours - hours) * 60)
         return f"{hours:02d}:{minutes:02d}:00"
 
     def generate_vehicle_duration(self, vehicle_hash, factor):
         """Генерация длительности для конкретного ТС"""
-        base_hours = (20 + (vehicle_hash % 30)) * factor
+        base_hours = (15 + (vehicle_hash % 40)) * factor
         hours = int(base_hours)
         minutes = int((base_hours - hours) * 60)
         return f"{hours:02d}:{minutes:02d}:00"
@@ -273,16 +294,16 @@ class VehicleStatisticsAPI(APIView):
 
         # Базовые значения с учетом характеристик ТС
         if is_weekend:
-            base_distance = 50 * distance_factor
-            base_fuel = 20 * fuel_factor
-            base_speed = 40 * speed_factor
+            base_distance = 40 * distance_factor
+            base_fuel = 15 * fuel_factor
+            base_speed = 35 * speed_factor
         else:
-            base_distance = 120 * distance_factor
-            base_fuel = 45 * fuel_factor
-            base_speed = 65 * speed_factor
+            base_distance = 100 * distance_factor
+            base_fuel = 35 * fuel_factor
+            base_speed = 55 * speed_factor
 
         # Добавляем случайные вариации
-        variation = random.uniform(-0.2, 0.2)
+        variation = random.uniform(-0.15, 0.15)
 
         return {
             'distance': round(base_distance * (1 + variation), 2),
@@ -295,18 +316,18 @@ class VehicleStatisticsAPI(APIView):
     def generate_daily_hours(self, vehicle_hash, is_weekend):
         """Генерация дневных часов работы"""
         if is_weekend:
-            hours = 2 + (vehicle_hash % 4)
+            hours = 1 + (vehicle_hash % 3)
         else:
-            hours = 6 + (vehicle_hash % 6)
+            hours = 5 + (vehicle_hash % 5)
         minutes = random.randint(0, 59)
         return f"{hours:02d}:{minutes:02d}:00"
 
     def generate_daily_move_duration(self, vehicle_hash, is_weekend):
         """Генерация времени в движении"""
         if is_weekend:
-            hours = 1 + (vehicle_hash % 3)
+            hours = 1 + (vehicle_hash % 2)
         else:
-            hours = 4 + (vehicle_hash % 4)
+            hours = 3 + (vehicle_hash % 4)
         minutes = random.randint(0, 59)
         return f"{hours:02d}:{minutes:02d}:00"
 
@@ -314,13 +335,18 @@ class VehicleStatisticsAPI(APIView):
 class VehicleChartDataAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def get(self, request):
         """API для данных графиков"""
         try:
-            data = request.data
-            chart_type = data.get('chart_type', 'fuel')
-            start_date = data.get('start_date')
-            end_date = data.get('end_date')
+            chart_type = request.GET.get('chart_type', 'fuel')
+            start_date = request.GET.get('start_date')
+            end_date = request.GET.get('end_date')
+
+            if not start_date or not end_date:
+                return Response({
+                    'success': False,
+                    'error': 'Отсутствуют start_date или end_date'
+                }, status=400)
 
             chart_data = self.generate_mock_chart_data(chart_type, start_date, end_date)
 
@@ -371,7 +397,7 @@ class VehicleChartDataAPI(APIView):
 class VehicleHistoricalDataAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def get(self, request):
         """API для детальных исторических данных"""
         try:
             return Response({
