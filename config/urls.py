@@ -19,5 +19,6 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('auth/', include('users.urls')),
     path('dashboard/', include('dashboard.urls')),
-    path('vehicles/', include('vehicles.urls')),  # И HTML и API через префиксы
+    path('vehicles/', include('vehicles.urls')),
+    path('reports/', include('reports.urls')),# И HTML и API через префиксы
 ]

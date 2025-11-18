@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'billing',
     'support',
     'api',
+    'reports',
 
     # Сторонние
     'rest_framework',

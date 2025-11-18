@@ -1,727 +1,551 @@
 # vehicles/api_views.py
-from rest_framework.views import APIView
+from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.conf import settings
-from vehicles.services import AutoGraphService, AutoGraphHistoricalService
+from rest_framework.views import APIView
+from django.http import JsonResponse
+from django.views import View
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
+from .services import AutoGraphService, AutoGraphHistoricalService, AutoGraphDataCollector
 import logging
-from datetime import datetime, timedelta
-import random
 
 logger = logging.getLogger(__name__)
 
 
-class DebugAPIView(APIView):
-    permission_classes = [AllowAny]  # Разрешаем доступ без аутентификации
+class VehicleListAPI(APIView):
+    """API для получения списка ТС из AutoGRAPH"""
 
-    def get(self, request):
-        """Диагностический endpoint для проверки работы API"""
+    def post(self, request):
         try:
-            debug_info = {
-                'status': 'diagnostics',
-                'timestamp': datetime.now().isoformat(),
-                'received_parameters': dict(request.GET),
-                'service_status': {},
-                'django_settings': {
-                    'debug': getattr(settings, 'DEBUG', 'NOT_SET'),
-                    'autograph_url': getattr(settings, 'AUTOGRAPH_API_BASE_URL', 'NOT_SET'),
-                    'installed_apps': [app for app in getattr(settings, 'INSTALLED_APPS', []) if
-                                       'vehicle' in app or 'rest' in app]
-                }
-            }
+            username = request.data.get('username')
+            password = request.data.get('password')
+            schema_id = request.data.get('schema_id')
 
-            # Проверяем базовый сервис
-            try:
-                base_service = AutoGraphService()
-                login_result = base_service.login("Osipenko", "Osipenko")
-                debug_info['service_status']['base_service'] = {
-                    'login_success': login_result,
-                    'token_available': bool(base_service.token),
-                    'token_preview': base_service.token[:20] + '...' if base_service.token else None,
-                    'base_url': base_service.base_url
-                }
-
-                if login_result:
-                    schemas = base_service.get_schemas()
-                    debug_info['service_status']['schemas'] = {
-                        'count': len(schemas) if schemas else 0,
-                        'first_schema': schemas[0] if schemas else None
-                    }
-
-                    # Пробуем получить список ТС
-                    if schemas:
-                        schema_id = schemas[0].get('ID')
-                        vehicles_data = base_service.get_vehicles(schema_id)
-                        debug_info['service_status']['vehicles'] = {
-                            'schema_id': schema_id,
-                            'items_count': len(vehicles_data.get('Items', [])) if vehicles_data else 0,
-                            'sample_vehicles': []
-                        }
-
-                        # Добавляем примеры ТС
-                        if vehicles_data and 'Items' in vehicles_data:
-                            for vehicle in vehicles_data['Items'][:3]:
-                                debug_info['service_status']['vehicles']['sample_vehicles'].append({
-                                    'id': vehicle.get('ID'),
-                                    'name': vehicle.get('Name'),
-                                    'license_plate': base_service.extract_license_plate_enhanced(vehicle)
-                                })
-                else:
-                    debug_info['service_status']['base_service']['error'] = 'Login failed'
-
-            except Exception as e:
-                debug_info['service_status']['base_service_error'] = str(e)
-                import traceback
-                debug_info['service_status']['base_service_traceback'] = traceback.format_exc()
-
-            # Проверяем исторический сервис
-            try:
-                historical_service = AutoGraphHistoricalService()
-                debug_info['service_status']['historical_service'] = {
-                    'initialized': True,
-                    'base_service_available': bool(historical_service.base_service)
-                }
-
-                # Пробуем получить тестовые исторические данные
-                test_data = historical_service.get_vehicle_historical_statistics(
-                    '11804e75-d2c3-4f2b-9107-5ad899adfe12',
-                    'fad66447-fe18-4a2a-a7b9-945eab775fda',
-                    '2024-01-01',
-                    '2024-01-02'
+            if not all([username, password, schema_id]):
+                return Response(
+                    {"error": "Необходимы параметры: username, password, schema_id"},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
-                debug_info['service_status']['historical_test'] = {
-                    'success': bool(test_data),
-                    'has_summary': bool(test_data and test_data.get('summary')),
-                    'data_keys': list(test_data.keys()) if test_data else []
-                }
-
-                # Если есть ошибка, показываем ее
-                if not test_data:
-                    debug_info['service_status']['historical_test']['note'] = 'No data returned from historical service'
-
-            except Exception as e:
-                debug_info['service_status']['historical_service_error'] = str(e)
-                import traceback
-                debug_info['service_status']['historical_service_traceback'] = traceback.format_exc()
-
-            return Response(debug_info)
-
-        except Exception as e:
-            logger.error(f"❌ Debug API error: {e}")
-            return Response({
-                'error': f'Debug failed: {str(e)}',
-                'timestamp': datetime.now().isoformat()
-            }, status=500)
-
-
-class VehiclesListAPI(APIView):
-    permission_classes = [AllowAny]  # Временно отключаем аутентификацию
-
-    def get(self, request):
-        """API для получения списка ТС"""
-        try:
-            logger.info("🔄 VEHICLES LIST API CALLED")
 
             service = AutoGraphService()
-            if service.login("Osipenko", "Osipenko"):
-                schemas = service.get_schemas()
-                if schemas:
-                    schema_id = schemas[0].get('ID')
 
-                    # Получаем базовую информацию о ТС
-                    vehicles_data = service.get_vehicles(schema_id)
+            if not service.login(username, password):
+                return Response(
+                    {"error": "Ошибка аутентификации в AutoGRAPH"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-                    if vehicles_data and 'Items' in vehicles_data:
-                        formatted_vehicles = []
-                        for vehicle in vehicles_data['Items']:
-                            license_plate = service.extract_license_plate_enhanced(vehicle)
-                            vehicle_info = {
-                                'id': vehicle.get('ID'),
-                                'name': vehicle.get('Name', 'Unknown'),
-                                'license_plate': license_plate,
-                                'serial': vehicle.get('Serial'),
-                                'schema_id': schema_id,
-                            }
-                            formatted_vehicles.append(vehicle_info)
+            vehicles_data = service.get_vehicles(schema_id)
 
-                        logger.info(f"✅ Successfully loaded {len(formatted_vehicles)} vehicles")
-                        return Response({
-                            'success': True,
-                            'vehicles': formatted_vehicles,
-                            'schema_id': schema_id,
-                            'source': 'real_data',
-                            'total_count': len(formatted_vehicles),
-                        })
-
-            # Fallback to mock data
-            mock_vehicles = self.get_mock_vehicles()
-            return Response({
-                'success': True,
-                'vehicles': mock_vehicles,
-                'schema_id': 'mock-schema',
-                'source': 'mock_data',
-            })
+            return Response(vehicles_data)
 
         except Exception as e:
-            logger.error(f"❌ Vehicles list API error: {e}")
-            mock_vehicles = self.get_mock_vehicles()
-            return Response({
-                'success': True,
-                'vehicles': mock_vehicles,
-                'schema_id': 'error-schema',
-                'source': 'error_fallback',
-            })
-
-    def get_mock_vehicles(self):
-        """Генерация mock данных"""
-        return [
-            {
-                'id': '11804e75-d2c3-4f2b-9107-5ad899adfe12',
-                'name': '644 Freightliner',
-                'license_plate': 'Н 644 ВК 186',
-                'serial': '260668',
-                'schema_id': 'fad66447-fe18-4a2a-a7b9-945eab775fda'
-            },
-            {
-                'id': 'abe04e76-cf82-41ac-9836-086ae66e652e',
-                'name': '776 Freightliner',
-                'license_plate': 'Н 776 ВК 186',
-                'serial': '261869',
-                'schema_id': 'fad66447-fe18-4a2a-a7b9-945eab775fda'
-            },
-            {
-                'id': '8570f4fd-ee21-431c-8412-9b4b54e955af',
-                'name': '336 Freightliner',
-                'license_plate': 'Н 336 ВК 186',
-                'serial': '378356',
-                'schema_id': 'fad66447-fe18-4a2a-a7b9-945eab775fda'
-            }
-        ]
+            logger.error(f"❌ Error in VehicleListAPI: {e}")
+            return Response(
+                {"error": f"Ошибка при получении списка ТС: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-class VehicleStatisticsAPI(APIView):
-    permission_classes = [AllowAny]  # Временно отключаем аутентификацию
+class VehicleListForPageAPI(APIView):
+    """API для получения списка ТС для страницы транспорта"""
 
     def get(self, request):
-        """GET метод для получения РЕАЛЬНЫХ исторических данных по ТС"""
         try:
-            # Получаем параметры из GET запроса
-            vehicle_id = request.GET.get('vehicle_id')
-            schema_id = request.GET.get('schema_id', 'fad66447-fe18-4a2a-a7b9-945eab775fda')
-            start_date = request.GET.get('start_date')
-            end_date = request.GET.get('end_date')
-            time_step = request.GET.get('time_step', 'hour')
+            # Используем хардкодированные учетные данные (как в дашборде)
+            service = AutoGraphService()
 
-            logger.info(f"🔄 GET Real historical data for: {vehicle_id} from {start_date} to {end_date}")
-
-            if not all([vehicle_id, start_date, end_date]):
+            if not service.login("Osipenko", "Osipenko"):
                 return Response({
-                    'success': False,
-                    'error': 'Отсутствуют обязательные параметры: vehicle_id, start_date, end_date'
-                }, status=400)
+                    "success": False,
+                    "error": "Ошибка аутентификации"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # Детальное логирование параметров
-            logger.info(
-                f"📋 Parameters: vehicle_id={vehicle_id}, schema_id={schema_id}, start_date={start_date}, end_date={end_date}")
-
-            # Пробуем получить реальные данные из AutoGRAPH
-            real_data = self.get_real_historical_data(vehicle_id, schema_id, start_date, end_date)
-
-            if real_data and real_data.get('summary'):
-                logger.info(f"✅ Returning REAL data for {vehicle_id}")
+            schemas = service.get_schemas()
+            if not schemas:
                 return Response({
-                    'success': True,
-                    'statistics': real_data,
-                    'period': {
-                        'start': start_date,
-                        'end': end_date,
-                        'step': time_step
-                    },
-                    'vehicle_id': vehicle_id,
-                    'data_source': 'autograph_real'
+                    "success": False,
+                    "error": "Нет доступных схем"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            schema_id = schemas[0].get('ID')
+            vehicles_data = service.get_vehicles(schema_id)
+
+            if not vehicles_data or 'Items' not in vehicles_data:
+                return Response({
+                    "success": False,
+                    "error": "Нет данных о ТС"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Форматируем данные для фронтенда
+            formatted_vehicles = []
+            for vehicle in vehicles_data['Items']:
+                license_plate = service.extract_license_plate_enhanced(vehicle)
+
+                formatted_vehicles.append({
+                    'id': vehicle.get('ID'),
+                    'name': vehicle.get('Name', 'Unknown'),
+                    'license_plate': license_plate,
+                    'serial': vehicle.get('Serial'),
+                    'schema_id': schema_id,
+                    'properties': vehicle.get('Properties', [])
                 })
 
-            # Fallback к mock данным
-            logger.info(f"⚠️ No real data, using MOCK data for {vehicle_id}")
-            mock_data = self.generate_mock_statistics(vehicle_id, start_date, end_date, time_step)
-
-            # Проверяем что mock данные корректны
-            if not mock_data or not mock_data.get('summary'):
-                logger.error("❌ Mock data generation failed")
-                return Response({
-                    'success': False,
-                    'error': 'Не удалось сгенерировать данные'
-                }, status=500)
-
             return Response({
-                'success': True,
-                'statistics': mock_data,
-                'period': {
-                    'start': start_date,
-                    'end': end_date,
-                    'step': time_step
-                },
-                'vehicle_id': vehicle_id,
-                'data_source': 'mock_fallback'
+                "success": True,
+                "data": {
+                    "vehicles": formatted_vehicles,
+                    "schema_name": schemas[0].get('Name', 'Основная схема'),
+                    "total_count": len(formatted_vehicles)
+                }
             })
 
         except Exception as e:
-            logger.error(f"❌ Vehicle statistics API error: {e}")
-            import traceback
-            logger.error(f"🔍 Traceback: {traceback.format_exc()}")
+            logger.error(f"VehicleListForPageAPI error: {e}")
             return Response({
-                'success': False,
-                'error': f'Ошибка сервера: {str(e)}'
-            }, status=500)
+                "success": False,
+                "error": f"Внутренняя ошибка: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def get_real_historical_data(self, vehicle_id, schema_id, start_date, end_date):
-        """Получение реальных данных из AutoGRAPH"""
+
+class VehicleSyncAPI(APIView):
+    """API для получения данных из AutoGRAPH (без сохранения в БД)"""
+
+    def post(self, request):
         try:
-            logger.info(f"🔧 Attempting to get real data for {vehicle_id}")
-            historical_service = AutoGraphHistoricalService()
-            result = historical_service.get_vehicle_historical_statistics(
-                vehicle_id, schema_id, start_date, end_date
+            username = request.data.get('username')
+            password = request.data.get('password')
+
+            if not username or not password:
+                return Response(
+                    {"error": "Необходимы username и password"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            service = AutoGraphService()
+
+            if not service.login(username, password):
+                return Response(
+                    {"error": "Ошибка аутентификации в AutoGRAPH"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            schemas = service.get_schemas()
+            if not schemas:
+                return Response(
+                    {"error": "Не удалось получить схемы из AutoGRAPH"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Возвращаем схемы без сохранения в БД
+            return Response({
+                "message": "Данные успешно получены из AutoGRAPH",
+                "schemas_count": len(schemas),
+                "schemas": schemas
+            })
+
+        except Exception as e:
+            logger.error(f"❌ Error in VehicleSyncAPI: {e}")
+            return Response(
+                {"error": f"Ошибка при синхронизации: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            logger.info(f"🔧 Real data result: {bool(result)}")
-            if result:
-                logger.info(f"🔧 Real data keys: {list(result.keys())}")
-            return result
-        except Exception as e:
-            logger.error(f"❌ Error getting real historical data: {e}")
-            import traceback
-            logger.error(f"🔍 Traceback in get_real_historical_data: {traceback.format_exc()}")
-            return None
-
-    def generate_mock_statistics(self, vehicle_id, start_date, end_date, time_step):
-        """Генерация mock данных"""
-        try:
-            vehicle_info = self.get_vehicle_info(vehicle_id)
-            if not vehicle_info:
-                logger.warning(f"⚠️ No vehicle info for {vehicle_id}")
-                return None
-
-            return self.generate_vehicle_specific_statistics(vehicle_info, start_date, end_date, time_step)
-        except Exception as e:
-            logger.error(f"❌ Error generating mock statistics: {e}")
-            return None
-
-    def get_vehicle_info(self, vehicle_id):
-        """Получение информации о конкретном ТС"""
-        vehicles_data = {
-            '11804e75-d2c3-4f2b-9107-5ad899adfe12': {
-                'id': '11804e75-d2c3-4f2b-9107-5ad899adfe12',
-                'name': '644 Freightliner',
-                'license_plate': 'Н 644 ВК 186',
-                'serial': '260668',
-                'type': 'Грузовой',
-                'model': 'Freightliner'
-            },
-            'abe04e76-cf82-41ac-9836-086ae66e652e': {
-                'id': 'abe04e76-cf82-41ac-9836-086ae66e652e',
-                'name': '776 Freightliner',
-                'license_plate': 'Н 776 ВК 186',
-                'serial': '261869',
-                'type': 'Грузовой',
-                'model': 'Freightliner'
-            },
-            '8570f4fd-ee21-431c-8412-9b4b54e955af': {
-                'id': '8570f4fd-ee21-431c-8412-9b4b54e955af',
-                'name': '336 Freightliner',
-                'license_plate': 'Н 336 ВК 186',
-                'serial': '378356',
-                'type': 'Грузовой',
-                'model': 'Freightliner'
-            }
-        }
-
-        return vehicles_data.get(vehicle_id)
-
-    def generate_vehicle_specific_statistics(self, vehicle_info, start_date, end_date, time_step):
-        """Генерация статистики для КОНКРЕТНОГО ТС"""
-        try:
-            start = datetime.strptime(start_date, '%Y-%m-%d')
-            end = datetime.strptime(end_date, '%Y-%m-%d')
-
-            # Генерируем уникальные данные для каждого ТС на основе его ID
-            vehicle_hash = hash(vehicle_info['id']) % 1000
-
-            # Базовые данные, зависящие от конкретного ТС
-            base_stats = {
-                'total_distance': round(400 + (vehicle_hash % 600), 1),
-                'total_fuel_consumption': round(150 + (vehicle_hash % 250), 1),
-                'total_engine_hours': self.generate_vehicle_hours(vehicle_hash),
-                'total_move_duration': self.generate_vehicle_duration(vehicle_hash, 0.7),
-                'total_park_duration': self.generate_vehicle_duration(vehicle_hash, 0.3),
-                'max_speed': round(75 + (vehicle_hash % 40), 1),
-                'average_speed': round(45 + (vehicle_hash % 35), 1),
-                'fuel_efficiency': round(25 + (vehicle_hash % 25), 1),
-                'parking_count': 15 + (vehicle_hash % 20),
-                'overspeed_count': 5 + (vehicle_hash % 15),
-            }
-
-            # Топливная аналитика
-            fuel_analytics = {
-                'current_level': round(300 + (vehicle_hash % 400), 1),
-                'refills_count': 1 + (vehicle_hash % 3),
-                'refills_volume': round(100 + (vehicle_hash % 200), 1),
-                'consumption_per_motor_hour': round(20 + (vehicle_hash % 15), 1),
-                'total_fuel_volume': round(400 + (vehicle_hash % 300), 1),
-            }
-
-            # Нарушения
-            violations = {
-                'overspeed_duration': self.generate_vehicle_duration(vehicle_hash, 0.1),
-                'penalty_points': round(50 + (vehicle_hash % 100), 1),
-                'overspeed_points': round(30 + (vehicle_hash % 70), 1),
-            }
-
-            # Статусы оборудования
-            equipment_status = {
-                'ignition': False,
-                'gsm_signal': True,
-                'gps_signal': True,
-                'power': True,
-                'movement': 'parking'
-            }
-
-            # Локация
-            location = {
-                'address': 'Технологическая ул., 25 с7, Сургут, Ханты-Мансийский АО — Югра',
-                'coordinates': {'lat': 61.26816889, 'lng': 73.44545833},
-                'last_update': datetime.now().isoformat()
-            }
-
-            # Генерация временных рядов для конкретного ТС
-            time_series = self.generate_vehicle_time_series(vehicle_info, start, end, time_step, vehicle_hash)
-
-            return {
-                'summary': base_stats,
-                'fuel_analytics': fuel_analytics,
-                'violations': violations,
-                'equipment_status': equipment_status,
-                'location': location,
-                'time_series': time_series,
-                'vehicle_id': vehicle_info['id'],
-                'vehicle_name': vehicle_info['name'],
-                'license_plate': vehicle_info['license_plate'],
-                'data_source': 'vehicle_specific'
-            }
-        except Exception as e:
-            logger.error(f"❌ Error in generate_vehicle_specific_statistics: {e}")
-            return None
-
-    def generate_vehicle_hours(self, vehicle_hash):
-        """Генерация часов работы для конкретного ТС"""
-        base_hours = 25 + (vehicle_hash % 60)
-        hours = int(base_hours)
-        minutes = int((base_hours - hours) * 60)
-        return f"{hours:02d}:{minutes:02d}:00"
-
-    def generate_vehicle_duration(self, vehicle_hash, factor):
-        """Генерация длительности для конкретного ТС"""
-        base_hours = (15 + (vehicle_hash % 40)) * factor
-        hours = int(base_hours)
-        minutes = int((base_hours - hours) * 60)
-        return f"{hours:02d}:{minutes:02d}:00"
-
-    def generate_vehicle_time_series(self, vehicle_info, start, end, time_step, vehicle_hash):
-        """Генерация временных рядов для конкретного ТС"""
-        try:
-            intervals = []
-            current = start
-
-            # Уникальные коэффициенты для каждого ТС
-            distance_factor = 0.8 + (vehicle_hash % 40) / 100
-            fuel_factor = 0.7 + (vehicle_hash % 50) / 100
-            speed_factor = 0.9 + (vehicle_hash % 20) / 100
-            fuel_volume_factor = 0.6 + (vehicle_hash % 80) / 100
-
-            while current <= end:
-                # Генерация данных с учетом характеристик ТС
-                day_data = self.generate_vehicle_day_data(current, vehicle_hash, distance_factor, fuel_factor,
-                                                          speed_factor,
-                                                          fuel_volume_factor)
-
-                interval_data = {
-                    'timestamp': current.strftime('%Y-%m-%d %H:%M:%S'),
-                    'distance': day_data['distance'],
-                    'fuel_consumption': day_data['fuel'],
-                    'engine_hours': day_data['hours'],
-                    'move_duration': day_data['move_duration'],
-                    'max_speed': day_data['speed'],
-                    'fuel_level': day_data['fuel_level'],
-                    'total_fuel_volume': day_data['total_fuel_volume'],
-                }
-                intervals.append(interval_data)
-
-                if time_step == 'hour':
-                    current += timedelta(hours=1)
-                elif time_step == 'day':
-                    current += timedelta(days=1)
-                elif time_step == 'week':
-                    current += timedelta(weeks=1)
-
-            return intervals
-        except Exception as e:
-            logger.error(f"❌ Error generating vehicle time series: {e}")
-            return []
-
-    def generate_vehicle_day_data(self, date, vehicle_hash, distance_factor, fuel_factor, speed_factor,
-                                  fuel_volume_factor):
-        """Генерация дневных данных для конкретного ТС"""
-        day_of_week = date.weekday()
-        is_weekend = day_of_week >= 5
-
-        # Базовые значения с учетом характеристик ТС
-        if is_weekend:
-            base_distance = 40 * distance_factor
-            base_fuel = 15 * fuel_factor
-            base_speed = 35 * speed_factor
-            base_fuel_volume = 300 * fuel_volume_factor
-        else:
-            base_distance = 100 * distance_factor
-            base_fuel = 35 * fuel_factor
-            base_speed = 55 * speed_factor
-            base_fuel_volume = 500 * fuel_volume_factor
-
-        # Добавляем случайные вариации
-        variation = random.uniform(-0.15, 0.15)
-
-        return {
-            'distance': round(base_distance * (1 + variation), 2),
-            'fuel': round(base_fuel * (1 + variation), 2),
-            'speed': round(base_speed * (1 + variation * 0.5), 2),
-            'fuel_level': round(base_fuel_volume * 0.6 * (1 + variation), 2),
-            'total_fuel_volume': round(base_fuel_volume * (1 + variation * 0.3), 2),
-            'hours': self.generate_daily_hours(vehicle_hash, is_weekend),
-            'move_duration': self.generate_daily_move_duration(vehicle_hash, is_weekend)
-        }
-
-    def generate_daily_hours(self, vehicle_hash, is_weekend):
-        """Генерация дневных часов работы"""
-        if is_weekend:
-            hours = 1 + (vehicle_hash % 3)
-        else:
-            hours = 5 + (vehicle_hash % 5)
-        minutes = random.randint(0, 59)
-        return round(hours + minutes / 60, 2)
-
-    def generate_daily_move_duration(self, vehicle_hash, is_weekend):
-        """Генерация времени в движении"""
-        if is_weekend:
-            hours = 1 + (vehicle_hash % 2)
-        else:
-            hours = 3 + (vehicle_hash % 4)
-        minutes = random.randint(0, 59)
-        return round(hours + minutes / 60, 2)
-
-
-class VehicleChartDataAPI(APIView):
-    permission_classes = [AllowAny]  # Временно отключаем аутентификацию
-
-    def get(self, request):
-        """API для данных графиков с поддержкой стилей"""
-        try:
-            chart_type = request.GET.get('chart_type', 'composite')
-            start_date = request.GET.get('start_date')
-            end_date = request.GET.get('end_date')
-            vehicle_id = request.GET.get('vehicle_id')
-            chart_style = request.GET.get('chart_style', 'line')
-            metrics = request.GET.get('metrics', '').split(',')
-
-            if not start_date or not end_date or not vehicle_id:
-                return Response({
-                    'success': False,
-                    'error': 'Отсутствуют start_date, end_date или vehicle_id'
-                }, status=400)
-
-            # Получаем реальные или mock данные
-            chart_data = self.get_chart_data(vehicle_id, start_date, end_date, metrics, chart_style)
-
-            return Response({
-                'success': True,
-                'chart_data': chart_data,
-                'chart_type': chart_type,
-                'chart_style': chart_style,
-                'metrics': metrics
-            })
-
-        except Exception as e:
-            logger.error(f"Chart data API error: {e}")
-            return Response({
-                'success': False,
-                'error': f'Ошибка сервера: {str(e)}'
-            }, status=500)
-
-    def get_chart_data(self, vehicle_id, start_date, end_date, metrics, chart_style):
-        """Получение данных для графиков"""
-        try:
-            historical_service = AutoGraphHistoricalService()
-            time_series = historical_service.get_historical_time_series(
-                'fad66447-fe18-4a2a-a7b9-945eab775fda',
-                vehicle_id,
-                start_date,
-                end_date,
-                metrics
-            )
-
-            if not time_series:
-                time_series = self.generate_mock_time_series(start_date, end_date)
-
-            return self.format_chart_data(time_series, metrics, chart_style)
-
-        except Exception as e:
-            logger.error(f"Error getting chart data: {e}")
-            return self.generate_mock_chart_data(start_date, end_date, metrics, chart_style)
-
-    def format_chart_data(self, time_series, metrics, chart_style):
-        """Форматирование данных для графиков"""
-        if not time_series:
-            return {'labels': [], 'datasets': []}
-
-        labels = [item['timestamp'] for item in time_series]
-
-        metrics_config = {
-            'distance': {'label': 'Пробег', 'unit': 'км', 'color': '#27ae60'},
-            'fuel_consumption': {'label': 'Расход топлива', 'unit': 'л', 'color': '#e74c3c'},
-            'max_speed': {'label': 'Скорость', 'unit': 'км/ч', 'color': '#3498db'},
-            'engine_hours': {'label': 'Моточасы', 'unit': 'ч', 'color': '#f39c12'},
-            'fuel_level': {'label': 'Уровень топлива', 'unit': 'л', 'color': '#9b59b6'},
-            'total_fuel_volume': {'label': 'Общий объем топлива', 'unit': 'л', 'color': '#e67e22'},
-        }
-
-        datasets = []
-        for metric in metrics:
-            if metric in metrics_config:
-                config = metrics_config[metric]
-                data = [item.get(metric, 0) for item in time_series]
-
-                dataset = {
-                    'label': f"{config['label']} ({config['unit']})",
-                    'data': data,
-                    'borderColor': config['color'],
-                    'backgroundColor': config['color'] + '20',
-                    'tension': 0.4,
-                }
-
-                # Настройки в зависимости от стиля графика
-                if chart_style == 'bar':
-                    dataset['type'] = 'bar'
-                    dataset['backgroundColor'] = config['color'] + '80'
-                    dataset['borderColor'] = config['color']
-                    dataset['borderWidth'] = 1
-                elif chart_style == 'area':
-                    dataset['fill'] = True
-                    dataset['backgroundColor'] = config['color'] + '40'
-                else:  # line
-                    dataset['fill'] = False
-                    dataset['pointBackgroundColor'] = config['color']
-                    dataset['pointBorderColor'] = '#fff'
-                    dataset['pointBorderWidth'] = 2
-
-                datasets.append(dataset)
-
-        return {
-            'labels': labels,
-            'datasets': datasets
-        }
-
-    def generate_mock_time_series(self, start_date, end_date):
-        """Генерация тестовых временных рядов"""
-        start = datetime.strptime(start_date, '%Y-%m-%d')
-        end = datetime.strptime(end_date, '%Y-%m-%d')
-        days_diff = (end - start).days + 1
-
-        time_series = []
-        current = start
-
-        for i in range(days_diff * 24):  # Почасовые данные
-            time_series.append({
-                'timestamp': current.strftime('%Y-%m-%d %H:%M:%S'),
-                'distance': round(random.uniform(5, 50), 2),
-                'fuel_consumption': round(random.uniform(2, 15), 2),
-                'max_speed': round(random.uniform(30, 90), 2),
-                'engine_hours': round(random.uniform(0.5, 2.5), 2),
-                'fuel_level': round(random.uniform(100, 500), 2),
-                'total_fuel_volume': round(random.uniform(200, 600), 2),
-            })
-            current += timedelta(hours=1)
-
-        return time_series
-
-    def generate_mock_chart_data(self, start_date, end_date, metrics, chart_style):
-        """Генерация тестовых данных для графиков"""
-        start = datetime.strptime(start_date, '%Y-%m-%d')
-        end = datetime.strptime(end_date, '%Y-%m-%d')
-        days_diff = (end - start).days + 1
-
-        labels = [((start + timedelta(days=i)).strftime('%d.%m.%Y')) for i in range(days_diff)]
-
-        metrics_config = {
-            'distance': {'label': 'Пробег', 'unit': 'км', 'color': '#27ae60', 'min': 100, 'max': 400},
-            'fuel_consumption': {'label': 'Расход топлива', 'unit': 'л', 'color': '#e74c3c', 'min': 20, 'max': 60},
-            'max_speed': {'label': 'Скорость', 'unit': 'км/ч', 'color': '#3498db', 'min': 30, 'max': 90},
-            'engine_hours': {'label': 'Моточасы', 'unit': 'ч', 'color': '#f39c12', 'min': 4, 'max': 12},
-            'fuel_level': {'label': 'Уровень топлива', 'unit': 'л', 'color': '#9b59b6', 'min': 100, 'max': 500},
-            'total_fuel_volume': {'label': 'Общий объем топлива', 'unit': 'л', 'color': '#e67e22', 'min': 200,
-                                  'max': 600},
-        }
-
-        datasets = []
-        for metric in metrics:
-            if metric in metrics_config:
-                config = metrics_config[metric]
-                data = [round(random.uniform(config['min'], config['max']), 2) for _ in range(days_diff)]
-
-                dataset = {
-                    'label': f"{config['label']} ({config['unit']})",
-                    'data': data,
-                    'borderColor': config['color'],
-                    'backgroundColor': config['color'] + '20',
-                    'tension': 0.4,
-                }
-
-                # Настройки в зависимости от стиля графика
-                if chart_style == 'bar':
-                    dataset['type'] = 'bar'
-                    dataset['backgroundColor'] = config['color'] + '80'
-                    dataset['borderColor'] = config['color']
-                    dataset['borderWidth'] = 1
-                elif chart_style == 'area':
-                    dataset['fill'] = True
-                    dataset['backgroundColor'] = config['color'] + '40'
-                else:  # line
-                    dataset['fill'] = False
-                    dataset['pointBackgroundColor'] = config['color']
-                    dataset['pointBorderColor'] = '#fff'
-                    dataset['pointBorderWidth'] = 2
-
-                datasets.append(dataset)
-
-        return {
-            'labels': labels,
-            'datasets': datasets
-        }
 
 
 class VehicleHistoricalDataAPI(APIView):
-    permission_classes = [AllowAny]  # Временно отключаем аутентификацию
+    """API для получения исторических данных ТС - ФОРМАТ yyyyMMdd-HHmm"""
+
+    def post(self, request, vehicle_id):
+        try:
+            username = request.data.get('username')
+            password = request.data.get('password')
+            start_date = request.data.get('start_date')
+            end_date = request.data.get('end_date')
+            schema_id = request.data.get('schema_id')
+
+            if not all([username, password, start_date, end_date, schema_id]):
+                return Response(
+                    {"error": "Необходимы параметры: username, password, start_date, end_date, schema_id"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            historical_service = AutoGraphHistoricalService()
+            historical_data = historical_service.get_vehicle_historical_statistics(
+                username=username,
+                password=password,
+                vehicle_id=vehicle_id,
+                schema_id=schema_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            return Response(historical_data)
+
+        except Exception as e:
+            logger.error(f"❌ Error in VehicleHistoricalDataAPI: {e}")
+            return Response(
+                {"error": f"Ошибка при получении исторических данных: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class VehicleOnlineDataAPI(APIView):
+    """API для получения онлайн-данных ТС"""
+
+    def post(self, request):
+        try:
+            username = request.data.get('username')
+            password = request.data.get('password')
+            schema_id = request.data.get('schema_id')
+            vehicle_ids = request.data.get('vehicle_ids')
+
+            if not all([username, password, schema_id]):
+                return Response(
+                    {"error": "Необходимы параметры: username, password, schema_id"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            service = AutoGraphService()
+
+            if not service.login(username, password):
+                return Response(
+                    {"error": "Ошибка аутентификации в AutoGRAPH"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            if vehicle_ids:
+                online_data = service.get_online_info(schema_id, vehicle_ids)
+            else:
+                online_data = service.get_online_info_all(schema_id)
+
+            return Response(online_data)
+
+        except Exception as e:
+            logger.error(f"❌ Error in VehicleOnlineDataAPI: {e}")
+            return Response(
+                {"error": f"Ошибка при получении онлайн-данных: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+@method_decorator(login_required, name='dispatch')
+class VehicleStatisticsAPI(View):
+    """УЛУЧШЕННЫЙ API для получения статистики ТС - ФОРМАТ yyyyMMdd-HHmm"""
 
     def get(self, request):
-        """API для детальных исторических данных"""
         try:
-            return Response({
-                'success': True,
-                'historical_data': {
-                    'trips_count': 24,
-                    'total_period': '7 дней',
-                    'note': 'Исторические данные о поездках'
+            vehicle_id = request.GET.get('vehicle_id')
+            start_date = request.GET.get('start_date')
+            end_date = request.GET.get('end_date')
+
+            if not all([vehicle_id, start_date, end_date]):
+                return JsonResponse({
+                    "success": False,
+                    "error": "Необходимы параметры: vehicle_id, start_date, end_date"
+                })
+
+            # Используем улучшенный сервис
+            historical_service = AutoGraphHistoricalService()
+            statistics = historical_service.get_vehicle_historical_statistics(
+                username="Osipenko",
+                password="Osipenko",
+                vehicle_id=vehicle_id,
+                schema_id="fad66447-fe18-4a2a-a7b9-945eab775fda",  # ID схемы Osipenko
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            if statistics and statistics.get('transformation_success'):
+                return JsonResponse({
+                    "success": True,
+                    "data": statistics,
+                    "message": "Данные успешно получены"
+                })
+            else:
+                # Даже если transformation_success=False, возвращаем данные для отладки
+                return JsonResponse({
+                    "success": True,  # Все равно возвращаем success=True чтобы показать данные
+                    "data": statistics or {},
+                    "message": "Данные получены с ограничениями",
+                    "debug_info": {
+                        "has_data": bool(statistics),
+                        "data_source": statistics.get('data_source') if statistics else 'none',
+                        "trips_count": statistics.get('trips_count', 0) if statistics else 0
+                    }
+                })
+
+        except Exception as e:
+            logger.error(f"VehicleStatisticsAPI error: {e}")
+            return JsonResponse({
+                "success": False,
+                "error": f"Внутренняя ошибка: {str(e)}"
+            })
+
+
+class VehicleDebugAPI(APIView):
+    """API для отладки - проверяет подключение к AutoGRAPH"""
+
+    def get(self, request):
+        try:
+            service = AutoGraphService()
+
+            # 1. Проверяем аутентификацию
+            auth_success = service.login("Osipenko", "Osipenko")
+
+            debug_info = {
+                "authentication": {
+                    "success": auth_success,
+                    "token_available": bool(service.token),
+                    "token_preview": service.token[:20] + "..." if service.token else None
                 }
+            }
+
+            if auth_success:
+                # 2. Получаем схемы
+                schemas = service.get_schemas()
+                debug_info["schemas"] = {
+                    "count": len(schemas) if isinstance(schemas, list) else 0,
+                    "data": schemas
+                }
+
+                if schemas and len(schemas) > 0:
+                    schema_id = schemas[0].get('ID')
+
+                    # 3. Получаем транспортные средства
+                    vehicles_data = service.get_vehicles(schema_id)
+                    debug_info["vehicles"] = {
+                        "schema_id": schema_id,
+                        "has_data": bool(vehicles_data),
+                        "items_count": len(vehicles_data.get('Items', [])) if vehicles_data else 0,
+                        "sample_items": vehicles_data.get('Items', [])[:3] if vehicles_data else []
+                    }
+
+                    # 4. Получаем онлайн данные
+                    online_data = service.get_online_info_all(schema_id)
+                    debug_info["online_data"] = {
+                        "has_data": bool(online_data),
+                        "devices_count": len(online_data) if online_data else 0,
+                        "sample_devices": list(online_data.keys())[:3] if online_data else []
+                    }
+
+            return Response({
+                "success": True,
+                "debug_info": debug_info
             })
 
         except Exception as e:
-            logger.error(f"Historical data API error: {e}")
+            logger.error(f"VehicleDebugAPI error: {e}")
+            import traceback
             return Response({
-                'success': False,
-                'error': f'Ошибка сервера: {str(e)}'
-            }, status=500)
+                "success": False,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })
+
+
+class DataCollectionAPI(APIView):
+    """API для сбора всех данных из AutoGRAPH - ФОРМАТ yyyyMMdd-HHmm"""
+
+    def post(self, request):
+        try:
+            username = request.data.get('username', 'Osipenko')
+            password = request.data.get('password', 'Osipenko')
+            schema_id = request.data.get('schema_id')
+            start_date = request.data.get('start_date')
+            end_date = request.data.get('end_date')
+
+            collector = AutoGraphDataCollector()
+            collected_data = collector.collect_all_data(
+                username=username,
+                password=password,
+                schema_id=schema_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            if collected_data:
+                # Сохраняем данные в файл
+                filename = collector.save_collected_data()
+
+                return Response({
+                    "success": True,
+                    "message": f"Данные успешно собраны и сохранены в {filename}",
+                    "data_summary": {
+                        "schemas_count": len(collected_data.get('schemas', [])),
+                        "vehicles_count": len(collected_data.get('vehicles', {}).get('Items', [])),
+                        "online_devices_count": len(collected_data.get('online_info_all', {})),
+                        "collected_keys": list(collected_data.keys())
+                    }
+                })
+            else:
+                return Response({
+                    "success": False,
+                    "error": "Не удалось собрать данные"
+                })
+
+        except Exception as e:
+            logger.error(f"DataCollectionAPI error: {e}")
+            return Response({
+                "success": False,
+                "error": f"Ошибка при сборе данных: {str(e)}"
+            })
+
+
+class VehicleHistoricalDebugAPI(APIView):
+    """API для диагностики исторических данных - ФОРМАТ yyyyMMdd-HHmm"""
+
+    def get(self, request):
+        try:
+            vehicle_id = request.GET.get('vehicle_id')
+            start_date = request.GET.get('start_date', '2025-11-17')  # Используем дату с данными
+            end_date = request.GET.get('end_date', '2025-11-18')
+
+            if not vehicle_id:
+                return Response({
+                    "success": False,
+                    "error": "Необходим параметр vehicle_id"
+                })
+
+            service = AutoGraphService()
+
+            # Аутентификация
+            if not service.login("Osipenko", "Osipenko"):
+                return Response({
+                    "success": False,
+                    "error": "Ошибка аутентификации"
+                })
+
+            # Получаем схемы
+            schemas = service.get_schemas()
+            if not schemas:
+                return Response({
+                    "success": False,
+                    "error": "Нет доступных схем"
+                })
+
+            schema_id = schemas[0].get('ID')
+
+            debug_info = {
+                "test_parameters": {
+                    "vehicle_id": vehicle_id,
+                    "schema_id": schema_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "schema_name": schemas[0].get('Name')
+                }
+            }
+
+            # 1. Получаем детальную информацию о ТС
+            vehicle_details = service.get_vehicle_detailed_info(schema_id, vehicle_id)
+            debug_info["vehicle_details"] = vehicle_details
+
+            # 2. Тестируем подключение для исторических данных
+            historical_test = service.test_historical_data_connection(
+                schema_id, vehicle_id, start_date, end_date
+            )
+            debug_info["historical_test"] = historical_test
+
+            # 3. Пробуем получить реальные исторические данные
+            historical_service = AutoGraphHistoricalService()
+            historical_data = historical_service.get_vehicle_historical_statistics(
+                username="Osipenko",
+                password="Osipenko",
+                vehicle_id=vehicle_id,
+                schema_id=schema_id,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            debug_info["historical_data_attempt"] = {
+                "success": bool(historical_data),
+                "data_source": historical_data.get('data_source') if historical_data else None,
+                "transformation_success": historical_data.get('transformation_success') if historical_data else False,
+                "trips_count": historical_data.get('trips_count') if historical_data else 0,
+                "note": historical_data.get('note') if historical_data else None
+            }
+
+            return Response({
+                "success": True,
+                "debug_info": debug_info
+            })
+
+        except Exception as e:
+            logger.error(f"VehicleHistoricalDebugAPI error: {e}")
+            import traceback
+            return Response({
+                "success": False,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })
+
+
+class TestTripsTotalAPI(APIView):
+    """API для тестирования прямого запроса к GetTripsTotal с правильным форматом дат"""
+
+    def get(self, request):
+        try:
+            vehicle_id = request.GET.get('vehicle_id', '11804e75-d2c3-4f2b-9107-5ad899adfe12')
+            start_date = request.GET.get('start_date', '2025-11-17')
+            end_date = request.GET.get('end_date', '2025-11-18')
+
+            service = AutoGraphService()
+
+            if not service.login("Osipenko", "Osipenko"):
+                return Response({
+                    "success": False,
+                    "error": "Authentication failed"
+                })
+
+            # Форматируем даты правильно - yyyyMMdd-HHmm
+            start_fmt = service.format_date_for_api(start_date, is_start=True)
+            end_fmt = service.format_date_for_api(end_date, is_start=False)
+
+            logger.info(f"🔍 Testing GetTripsTotal with:")
+            logger.info(f"  Vehicle: {vehicle_id}")
+            logger.info(f"  Start: {start_fmt}")
+            logger.info(f"  End: {end_fmt}")
+
+            # Прямой вызов GetTripsTotal
+            trips_data = service.get_trips_total(
+                "fad66447-fe18-4a2a-a7b9-945eab775fda",  # schema_id
+                vehicle_id,
+                start_fmt,
+                end_fmt,
+                trip_splitter_index=-1
+            )
+
+            if trips_data and vehicle_id in trips_data:
+                vehicle_data = trips_data[vehicle_id]
+                return Response({
+                    "success": True,
+                    "test_parameters": {
+                        "vehicle_id": vehicle_id,
+                        "start_date": start_fmt,
+                        "end_date": end_fmt,
+                        "schema_id": "fad66447-fe18-4a2a-a7b9-945eab775fda"
+                    },
+                    "data_received": True,
+                    "vehicle_name": vehicle_data.get('Name'),
+                    "trips_count": len(vehicle_data.get('Trips', [])),
+                    "has_total_data": bool(vehicle_data.get('Total')),
+                    "sample_data": {
+                        "total_distance": vehicle_data.get('Total', {}).get('TotalDistance'),
+                        "total_fuel": vehicle_data.get('Total', {}).get('Engine1FuelConsum'),
+                        "engine_hours": vehicle_data.get('Total', {}).get('Engine1Motohours')
+                    }
+                })
+            else:
+                return Response({
+                    "success": False,
+                    "error": "No data received",
+                    "available_vehicles": list(trips_data.keys()) if trips_data else []
+                })
+
+        except Exception as e:
+            logger.error(f"❌ TestTripsTotalAPI error: {e}")
+            import traceback
+            return Response({
+                "success": False,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })

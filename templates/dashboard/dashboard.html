@@ -31,6 +31,7 @@
         .card-hover:hover {
             transform: translateY(-2px);
             transition: transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .loading-overlay {
             position: fixed;
@@ -49,7 +50,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <i class="fas fa-tachometer-alt me-2"></i>AutoGRAPH Мониторинг
+                <i class="fas fa-tachometer-alt me-2"></i>Autograph Monitor
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -69,6 +70,21 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/dashboard/reports/">
                             <i class="fas fa-chart-bar me-1"></i> Отчеты
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard/relay/">
+                            <i class="fas fa-satellite-dish me-1"></i> Ретрансляция
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard/billing/">
+                            <i class="fas fa-credit-card me-1"></i> Биллинг
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard/support/">
+                            <i class="fas fa-headset me-1"></i> Поддержка
                         </a>
                     </li>
                 </ul>
@@ -165,7 +181,7 @@
                 </div>
             </div>
 
-            <!-- НОВАЯ КАРТОЧКА - Топливные датчики -->
+            <!-- Карточка - Топливные датчики -->
             <div class="col-xl-3 col-md-6 mb-3">
                 <div class="card bg-info text-white h-100 card-hover">
                     <div class="card-body">
@@ -317,7 +333,7 @@
         <div class="row mt-4">
             <div class="col-12 text-center">
                 <small class="text-muted">
-                    AutoGRAPH Monitoring System •
+                    Autograph Monitor •
                     <span id="currentTime">{{ current_time|date:"d.m.Y H:i:s" }}</span> •
                     <span id="connectionStatus" class="text-success">● Онлайн</span>
                 </small>
@@ -405,10 +421,6 @@
             document.getElementById('totalVehicles').textContent = data.total_vehicles || 0;
             document.getElementById('onlineVehicles').textContent = data.online_vehicles || 0;
             document.getElementById('offlineVehicles').textContent = data.offline_vehicles || 0;
-
-            // Считаем ТС в движении
-            const movingVehicles = data.vehicles ? data.vehicles.filter(v => v.speed > 0).length : 0;
-            document.getElementById('movingVehicles').textContent = movingVehicles;
 
             // Считаем ТС с данными о топливе
             const vehiclesWithFuel = data.vehicles ? data.vehicles.filter(v => v.fuel_level !== null && v.fuel_level !== undefined).length : 0;
@@ -645,9 +657,7 @@
         }
 
         function showVehicleDetails(vehicleId) {
-            // Здесь можно реализовать открытие модального окна с детальной информацией
             console.log('Показать детали ТС:', vehicleId);
-            // Временное уведомление
             showNotification(`Детальная информация для ТС ID: ${vehicleId}`, 'info');
         }
 
@@ -673,7 +683,6 @@
         }
 
         function showNotification(message, type = 'info') {
-            // Создаем уведомление
             const alertClass = type === 'error' ? 'alert-danger' :
                               type === 'success' ? 'alert-success' :
                               type === 'warning' ? 'alert-warning' : 'alert-info';
@@ -689,7 +698,6 @@
 
             document.body.appendChild(alert);
 
-            // Автоматическое скрытие
             setTimeout(() => {
                 if (alert.parentNode) {
                     alert.parentNode.removeChild(alert);

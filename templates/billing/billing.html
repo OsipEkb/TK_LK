@@ -1,20 +1,346 @@
 {% extends 'base.html' %}
 
-{% block page_title %}Счета и оплата{% endblock %}
+{% block page_title %}Заказ счета{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        transition: transform 0.2s;
+        border-left: 4px solid #007bff;
+        height: 100%;
+    }
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .feature-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .coming-soon-badge {
+        background: linear-gradient(45deg, #FF6B6B, #FFA500);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .contact-info {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-file-invoice me-2"></i>Счета и оплата
-                </h5>
+<div class="container-fluid py-4">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>Заказ счета
+                    </h1>
+                    <p class="text-muted mb-0">Быстрое оформление счета для юридических лиц и ИП</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-light text-dark me-3">
+                        <i class="fas fa-clock me-1"></i>
+                        <span id="currentTime">{{ current_time|date:"H:i:s" }}</span>
+                    </span>
+                </div>
             </div>
-            <div class="card-body">
-                <p class="text-muted">Страница в разработке. Здесь будет работа со счетами и оплатой.</p>
+        </div>
+    </div>
+
+    <!-- Основная форма -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card order-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-building me-2"></i>Данные для счета
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Форма заказа -->
+                    <form id="invoiceForm">
+                        <div class="row g-3">
+                            <!-- Название организации -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Название организации *</label>
+                                <input type="text" class="form-control" id="orgName"
+                                       placeholder="ООО 'Пример'" required>
+                            </div>
+
+                            <!-- ИНН -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold">ИНН *</label>
+                                <input type="text" class="form-control" id="orgInn"
+                                       placeholder="1234567890" required>
+                                <div class="form-text">10 или 12 цифр</div>
+                            </div>
+
+                            <!-- Email для счета -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Email для отправки счета *</label>
+                                <input type="email" class="form-control" id="contactEmail"
+                                       placeholder="buh@example.com" required>
+                                <div class="form-text">На этот адрес будет отправлен счет</div>
+                            </div>
+
+                            <!-- Комментарий -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Комментарий</label>
+                                <textarea class="form-control" id="orderComment" rows="3"
+                                          placeholder="Дополнительная информация, особые условия..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary me-3" id="submitOrderBtn">
+                                    <i class="fas fa-paper-plane me-1"></i> Заказать счет
+                                </button>
+
+                                <button type="button" class="btn btn-outline-secondary" disabled
+                                        title="Функция в разработке">
+                                    <i class="fas fa-credit-card me-1"></i> Оплатить онлайн
+                                    <span class="coming-soon-badge ms-2">СКОРО</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка - Информация -->
+        <div class="col-lg-4">
+            <!-- Карточка информации -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Информация
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="feature-card">
+                        <h6><i class="fas fa-bolt me-2"></i>Быстрое оформление</h6>
+                        <p class="small mb-0">Счет будет сформирован и отправлен на email в течение 1 рабочего дня</p>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-rocket me-2"></i>Скоро будет доступно</h6>
+                        <p class="small mb-0">Онлайн оплата счетов банковской картой</p>
+                    </div>
+
+                    <div class="contact-info">
+                        <h6><i class="fas fa-headset me-2"></i>Техническая поддержка</h6>
+                        <p class="small mb-1">По вопросам оформления счетов:</p>
+                        <p class="mb-1">
+                            <i class="fas fa-envelope me-2"></i>
+                            <a href="mailto:support@example.com">support@example.com</a>
+                        </p>
+                        <p class="mb-0">
+                            <i class="fas fa-phone me-2"></i>
+                            <a href="tel:+78001234567">8 (800) 123-45-67</a>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Модальное окно успеха -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle me-2"></i>Запрос отправлен
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h5 class="mb-3">Запрос на счет успешно отправлен!</h5>
+                <p class="text-muted">
+                    Счет будет сформирован и отправлен на указанный email в течение 1 рабочего дня.
+                </p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    <i class="fas fa-home me-1"></i> На главную
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="createNewOrder()">
+                    <i class="fas fa-plus me-1"></i> Новый заказ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Состояние заказа
+const orderState = {
+    organization: {
+        name: '',
+        inn: ''
+    },
+    contact: {
+        email: ''
+    },
+    comment: ''
+};
+
+// Инициализация страницы
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Инициализация страницы заказа счета');
+    updateCurrentTime();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Обновление времени
+    setInterval(updateCurrentTime, 1000);
+
+    // Отправка формы
+    document.getElementById('invoiceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitOrder();
+    });
+
+    // Валидация ИНН
+    document.getElementById('orgInn').addEventListener('blur', validateInn);
+}
+
+function validateInn() {
+    const inn = document.getElementById('orgInn').value.trim();
+    if (inn && !/^\d{10}$|^\d{12}$/.test(inn)) {
+        showNotification('ИНН должен содержать 10 или 12 цифр', 'error');
+        return false;
+    }
+    return true;
+}
+
+async function submitOrder() {
+    // Сбор данных
+    orderState.organization.name = document.getElementById('orgName').value.trim();
+    orderState.organization.inn = document.getElementById('orgInn').value.trim();
+    orderState.contact.email = document.getElementById('contactEmail').value.trim();
+    orderState.comment = document.getElementById('orderComment').value.trim();
+
+    // Валидация
+    if (!orderState.organization.name || !orderState.organization.inn || !orderState.contact.email) {
+        showNotification('Заполните все обязательные поля', 'error');
+        return;
+    }
+
+    if (!validateInn()) {
+        return;
+    }
+
+    try {
+        // Показать индикатор загрузки
+        const submitBtn = document.getElementById('submitOrderBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Отправка...';
+        submitBtn.disabled = true;
+
+        // Отправка данных на сервер
+        const response = await fetch('/api/order-invoice/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                organization: orderState.organization,
+                contact: orderState.contact,
+                comment: orderState.comment
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Показать модальное окно успеха
+                const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                successModal.show();
+            } else {
+                throw new Error(data.error || 'Ошибка при отправке запроса');
+            }
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error('Ошибка при отправке запроса:', error);
+        showNotification('Ошибка при отправке запроса: ' + error.message, 'error');
+    } finally {
+        // Восстановить кнопку
+        const submitBtn = document.getElementById('submitOrderBtn');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+function createNewOrder() {
+    // Сброс формы
+    document.getElementById('invoiceForm').reset();
+
+    // Сброс состояния
+    orderState.organization.name = '';
+    orderState.organization.inn = '';
+    orderState.contact.email = '';
+    orderState.comment = '';
+
+    // Закрыть модальное окно
+    const modal = bootstrap.Modal.getInstance(document.getElementById('successModal'));
+    modal.hide();
+}
+
+// Вспомогательные функции
+function updateCurrentTime() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent =
+        now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'error' ? 'alert-danger' :
+                      type === 'success' ? 'alert-success' :
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+    const alert = document.createElement('div');
+    alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    alert.style.cssText = 'top: 80px; right: 20px; z-index: 1060; min-width: 300px;';
+    alert.innerHTML = `
+        <strong>${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'}</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.parentNode.removeChild(alert);
+        }
+    }, 5000);
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+</script>
 {% endblock %}
