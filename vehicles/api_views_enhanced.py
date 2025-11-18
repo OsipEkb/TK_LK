@@ -1,13 +1,12 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from .services import AutoGraphService
-from .services_enhanced import EnhancedAutoGraphService
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class BaseAutoGraphAPI(APIView):
 class VehicleListAPI(BaseAutoGraphAPI):
     """API для получения списка ТС"""
 
-    @method_decorator(cache_page(60 * 5))  # Кэш 5 минут
+    @method_decorator(cache_page(60))  # Кэш 1 минута
     def get(self, request):
         try:
             if not self._authenticate():
@@ -77,83 +76,6 @@ class VehicleListAPI(BaseAutoGraphAPI):
 
         except Exception as e:
             logger.error(f"VehicleListAPI error: {e}")
-            return Response({
-                "success": False,
-                "error": f"Внутренняя ошибка: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class EnhancedAnalyticsAPI(BaseAutoGraphAPI):
-    """API для расширенной аналитики"""
-
-    def get(self, request):
-        try:
-            vehicle_ids = request.GET.get('vehicle_ids', '')
-            start_date = request.GET.get('start_date')
-            end_date = request.GET.get('end_date')
-
-            if not all([vehicle_ids, start_date, end_date]):
-                return Response({
-                    "success": False,
-                    "error": "Необходимы параметры: vehicle_ids, start_date, end_date"
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            if not self._authenticate():
-                return Response({
-                    "success": False,
-                    "error": "Ошибка аутентификации"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            schema_id = self._get_schema_id()
-            if not schema_id:
-                return Response({
-                    "success": False,
-                    "error": "Нет доступных схем"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            enhanced_service = EnhancedAutoGraphService()
-            vehicle_ids_list = [vid.strip() for vid in vehicle_ids.split(',') if vid.strip()]
-
-            analytics_data = {}
-            processed_count = 0
-
-            for vehicle_id in vehicle_ids_list:
-                try:
-                    logger.info(f"🔄 Обработка ТС {vehicle_id}...")
-
-                    vehicle_data = enhanced_service.get_comprehensive_vehicle_data(
-                        schema_id, vehicle_id, start_date, end_date
-                    )
-
-                    if vehicle_data and vehicle_data.get('basic_info'):
-                        analytics_data[vehicle_id] = vehicle_data
-                        processed_count += 1
-                        logger.info(f"✅ ТС {vehicle_id} обработан успешно")
-                    else:
-                        logger.warning(f"⚠️ Нет данных для ТС {vehicle_id}")
-
-                except Exception as e:
-                    logger.error(f"❌ Ошибка обработки ТС {vehicle_id}: {e}")
-                    continue
-
-            return Response({
-                "success": True,
-                "data": {
-                    "vehicle_metrics": analytics_data,
-                    "period": {
-                        "start": start_date,
-                        "end": end_date
-                    },
-                    "summary": {
-                        "requested_vehicles": len(vehicle_ids_list),
-                        "processed_vehicles": processed_count,
-                        "failed_vehicles": len(vehicle_ids_list) - processed_count
-                    }
-                }
-            })
-
-        except Exception as e:
-            logger.error(f"EnhancedAnalyticsAPI error: {e}")
             return Response({
                 "success": False,
                 "error": f"Внутренняя ошибка: {str(e)}"

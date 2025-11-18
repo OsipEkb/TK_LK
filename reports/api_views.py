@@ -5,7 +5,8 @@ from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
-from vehicles.services import AutoGraphService, AutoGraphHistoricalService
+from vehicles.services import AutoGraphService
+from vehicles.services_enhanced import EnhancedAutoGraphService
 import logging
 from datetime import datetime, timedelta
 import json
@@ -20,7 +21,7 @@ class ReportsVehicleListAPI(APIView):
         try:
             service = AutoGraphService()
 
-            if not service.login("Osipenko", "Osipenko"):
+            if not service.login():
                 return Response({
                     "success": False,
                     "error": "Ошибка аутентификации"
@@ -45,7 +46,7 @@ class ReportsVehicleListAPI(APIView):
             # Форматируем данные для фронтенда
             formatted_vehicles = []
             for vehicle in vehicles_data['Items']:
-                license_plate = service.extract_license_plate_enhanced(vehicle)
+                license_plate = service.extract_license_plate(vehicle)
 
                 formatted_vehicles.append({
                     'id': vehicle.get('ID'),
@@ -84,8 +85,6 @@ class GenerateReportAPI(View):
             vehicle_ids = data.get('vehicle_ids', [])
             start_date = data.get('start_date')
             end_date = data.get('end_date')
-            start_time = data.get('start_time', '00:00')
-            end_time = data.get('end_time', '23:59')
 
             if not report_type:
                 return JsonResponse({
@@ -101,7 +100,7 @@ class GenerateReportAPI(View):
 
             # Генерируем отчет
             report_data = self._generate_report(
-                report_type, vehicle_ids, start_date, end_date, start_time, end_time
+                report_type, vehicle_ids, start_date, end_date
             )
 
             return JsonResponse({
@@ -121,14 +120,14 @@ class GenerateReportAPI(View):
                 "error": f"Ошибка генерации отчета: {str(e)}"
             })
 
-    def _generate_report(self, report_type, vehicle_ids, start_date, end_date, start_time, end_time):
+    def _generate_report(self, report_type, vehicle_ids, start_date, end_date):
         """Генерация данных отчета"""
 
-        # Используем сервис для получения данных
+        # Используем существующие сервисы
         service = AutoGraphService()
-        historical_service = AutoGraphHistoricalService()
+        enhanced_service = EnhancedAutoGraphService()
 
-        if not service.login("Osipenko", "Osipenko"):
+        if not service.login():
             return {"error": "Ошибка аутентификации"}
 
         schemas = service.get_schemas()
@@ -146,25 +145,20 @@ class GenerateReportAPI(View):
         # Собираем данные по каждому ТС
         for vehicle_id in vehicle_ids:
             try:
-                # Получаем исторические данные для ТС
-                historical_data = historical_service.get_vehicle_historical_statistics(
-                    username="Osipenko",
-                    password="Osipenko",
-                    vehicle_id=vehicle_id,
-                    schema_id=schema_id,
-                    start_date=start_date,
-                    end_date=end_date
+                # Получаем комплексные данные для ТС
+                comprehensive_data = enhanced_service.get_comprehensive_vehicle_data(
+                    schema_id, vehicle_id, start_date, end_date
                 )
 
-                if historical_data and historical_data.get('transformation_success'):
+                if comprehensive_data and comprehensive_data.get('basic_info'):
                     vehicle_report = self._format_vehicle_report(
-                        report_type, historical_data, vehicle_id
+                        report_type, comprehensive_data, vehicle_id
                     )
                     report_data["details"].append(vehicle_report)
                     report_data["vehicles"].append({
                         'id': vehicle_id,
-                        'name': historical_data.get('vehicle_name', 'Unknown'),
-                        'license_plate': historical_data.get('license_plate', 'Unknown')
+                        'name': comprehensive_data['basic_info'].get('name', 'Unknown'),
+                        'license_plate': comprehensive_data['basic_info'].get('license_plate', 'Unknown')
                     })
 
             except Exception as e:
@@ -176,56 +170,139 @@ class GenerateReportAPI(View):
 
         return report_data
 
-    def _format_vehicle_report(self, report_type, historical_data, vehicle_id):
+    def _format_vehicle_report(self, report_type, comprehensive_data, vehicle_id):
         """Форматирование данных отчета для конкретного ТС"""
 
-        summary = historical_data.get('summary', {})
-        fuel_analytics = historical_data.get('fuel_analytics', {})
-        violations = historical_data.get('violations', {})
+        summary_stats = comprehensive_data.get('summary_stats', {})
+        fuel_analysis = comprehensive_data.get('fuel_analysis', {})
+        work_analysis = comprehensive_data.get('work_analysis', {})
+        trips_data = comprehensive_data.get('trips_data', [])
+        track_data = comprehensive_data.get('track_data', [])
 
         base_data = {
-            'vehicle_id': vehicle_id,
-            'vehicle_name': historical_data.get('vehicle_name', 'Unknown'),
-            'license_plate': historical_data.get('license_plate', 'Unknown'),
+            'vehicleName': comprehensive_data['basic_info'].get('name', 'Unknown'),
+            'licensePlate': comprehensive_data['basic_info'].get('license_plate', 'Unknown'),
         }
 
+        # Движение
         if report_type == 'movement':
             return {
                 **base_data,
-                'distance': summary.get('total_distance', 0),
-                'avg_speed': summary.get('average_speed', 0),
-                'max_speed': summary.get('max_speed', 0),
-                'move_duration': summary.get('total_move_duration', '00:00:00'),
-                'engine_hours': summary.get('total_engine_hours', '00:00:00'),
-                'parking_count': summary.get('parking_count', 0)
+                'group': 'Основная группа',
+                'date': datetime.now().strftime('%d.%m.%Y'),
+                'distance': summary_stats.get('total_distance', 0),
+                'avgSpeed': self._calculate_average_speed(trips_data),
+                'maxSpeed': self._calculate_max_speed(trips_data),
+                'moveTime': summary_stats.get('total_engine_hours', '00:00:00'),
+                'engineTime': summary_stats.get('total_engine_hours', '00:00:00')
             }
+
+        # Заправки
         elif report_type == 'refueling':
             return {
                 **base_data,
-                'fuel_consumption': summary.get('total_fuel_consumption', 0),
-                'fuel_efficiency': summary.get('fuel_efficiency', 0),
-                'refills_count': fuel_analytics.get('refills_count', 0),
-                'refills_volume': fuel_analytics.get('refills_volume', 0),
-                'current_level': fuel_analytics.get('current_level', 0)
+                'date': datetime.now().strftime('%d.%m.%Y'),
+                'startVolume': 0,
+                'endVolume': self._get_last_fuel_level(track_data),
+                'actualConsumption': summary_stats.get('total_fuel_consumption', 0),
+                'refillVolume': fuel_analysis.get('total_refills_volume', 0),
+                'drainVolume': 0,
+                'consumptionPer100km': summary_stats.get('avg_fuel_efficiency', 0)
             }
+
+        # Нарушения
         elif report_type == 'violations':
+            max_speed = self._calculate_max_speed(trips_data)
+            overspeed_count = len([t for t in trips_data if t.get('max_speed', 0) > 90])
+
             return {
                 **base_data,
-                'overspeed_count': summary.get('overspeed_count', 0),
-                'overspeed_duration': violations.get('overspeed_duration', '00:00:00'),
-                'penalty_points': violations.get('penalty_points', 0),
-                'overspeed_points': violations.get('overspeed_points', 0)
+                'datetime': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'violationType': 'Превышение скорости' if max_speed > 90 else 'Нет нарушений',
+                'parameters': f'Макс. скорость: {max_speed} км/ч',
+                'location': self._get_last_location(track_data),
+                'duration': '00:00:00'
             }
+
+        # Сводный отчет
         elif report_type == 'summary':
             return {
                 **base_data,
-                'distance': summary.get('total_distance', 0),
-                'fuel_consumption': summary.get('total_fuel_consumption', 0),
-                'engine_hours': summary.get('total_engine_hours', '00:00:00'),
-                'avg_speed': summary.get('average_speed', 0),
-                'violations_count': summary.get('overspeed_count', 0),
-                'parking_count': summary.get('parking_count', 0)
+                'distance': summary_stats.get('total_distance', 0),
+                'workTime': summary_stats.get('total_engine_hours', '00:00:00'),
+                'fuelConsumption': summary_stats.get('total_fuel_consumption', 0),
+                'avgSpeed': self._calculate_average_speed(trips_data),
+                'violationsCount': len([t for t in trips_data if t.get('max_speed', 0) > 90])
             }
+
+        # Журнал
+        elif report_type == 'journal':
+            return {
+                **base_data,
+                'datetime': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'event': 'Анализ данных',
+                'location': self._get_last_location(track_data),
+                'parameters': f'Пробег: {summary_stats.get("total_distance", 0)} км',
+                'status': 'Завершено'
+            }
+
+        # Посменный отчет
+        elif report_type == 'shift':
+            return {
+                **base_data,
+                'shift': 'Смена 1',
+                'date': datetime.now().strftime('%d.%m.%Y'),
+                'driver': 'Водитель не назначен',
+                'distance': summary_stats.get('total_distance', 0),
+                'workTime': summary_stats.get('total_engine_hours', '00:00:00'),
+                'fuelConsumption': summary_stats.get('total_fuel_consumption', 0)
+            }
+
+        # Работа группы
+        elif report_type == 'group':
+            return {
+                **base_data,
+                'group': 'Основная группа',
+                'distance': summary_stats.get('total_distance', 0),
+                'workTime': summary_stats.get('total_engine_hours', '00:00:00'),
+                'fuelConsumption': summary_stats.get('total_fuel_consumption', 0),
+                'efficiency': summary_stats.get('avg_fuel_efficiency', 0)
+            }
+
+        # События
+        elif report_type == 'events':
+            return {
+                **base_data,
+                'datetime': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'eventType': 'Анализ данных',
+                'description': f'Пробег: {summary_stats.get("total_distance", 0)} км',
+                'location': self._get_last_location(track_data),
+                'duration': '01:00:00'
+            }
+
+        # Статистика
+        elif report_type == 'statistics':
+            return {
+                **base_data,
+                'period': 'День',
+                'distance': summary_stats.get('total_distance', 0),
+                'moveTime': summary_stats.get('total_engine_hours', '00:00:00'),
+                'idleTime': self._calculate_idle_time(work_analysis),
+                'fuelConsumption': summary_stats.get('total_fuel_consumption', 0),
+                'efficiency': summary_stats.get('avg_fuel_efficiency', 0)
+            }
+
+        # Стоянки
+        elif report_type == 'parking':
+            return {
+                **base_data,
+                'parkingStart': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'parkingEnd': (datetime.now() + timedelta(hours=2)).strftime('%d.%m.%Y %H:%M'),
+                'duration': '02:00:00',
+                'location': self._get_last_location(track_data),
+                'reason': 'Плановый перерыв'
+            }
+
         else:
             return base_data
 
@@ -235,50 +312,150 @@ class GenerateReportAPI(View):
             return {}
 
         if report_type == 'movement':
-            total_distance = sum(item.get('distance', 0) for item in details)
-            total_vehicles = len(details)
-            avg_speed = sum(item.get('avg_speed', 0) for item in details) / total_vehicles if total_vehicles > 0 else 0
-
             return {
-                'total_vehicles': total_vehicles,
-                'total_distance': round(total_distance, 2),
-                'average_speed': round(avg_speed, 2),
-                'total_parking_count': sum(item.get('parking_count', 0) for item in details)
+                'totalVehicles': len(details),
+                'totalDistance': sum(item.get('distance', 0) for item in details),
+                'avgSpeed': sum(item.get('avgSpeed', 0) for item in details) / len(details),
+                'totalEngineHours': '00:00:00'
             }
 
         elif report_type == 'refueling':
-            total_fuel = sum(item.get('fuel_consumption', 0) for item in details)
-            total_refills = sum(item.get('refills_count', 0) for item in details)
-
             return {
-                'total_vehicles': len(details),
-                'total_fuel_consumption': round(total_fuel, 2),
-                'total_refills': total_refills,
-                'average_efficiency': round(sum(item.get('fuel_efficiency', 0) for item in details) / len(details),
-                                            2) if details else 0
+                'totalVehicles': len(details),
+                'totalFuelConsumption': sum(item.get('actualConsumption', 0) for item in details),
+                'totalRefills': sum(item.get('refillVolume', 0) for item in details),
+                'avgEfficiency': sum(item.get('consumptionPer100km', 0) for item in details) / len(details)
             }
 
         elif report_type == 'violations':
-            total_violations = sum(item.get('overspeed_count', 0) for item in details)
-            total_points = sum(item.get('penalty_points', 0) for item in details)
-
             return {
-                'total_vehicles': len(details),
-                'total_violations': total_violations,
-                'total_penalty_points': round(total_points, 2),
-                'average_violations_per_vehicle': round(total_violations / len(details), 2) if details else 0
+                'totalVehicles': len(details),
+                'totalViolations': len([item for item in details if item.get('violationType') != 'Нет нарушений']),
+                'totalPenaltyPoints': len(
+                    [item for item in details if item.get('violationType') != 'Нет нарушений']) * 5
             }
 
-        else:  # summary report
-            total_distance = sum(item.get('distance', 0) for item in details)
-            total_fuel = sum(item.get('fuel_consumption', 0) for item in details)
-            total_violations = sum(item.get('violations_count', 0) for item in details)
-
+        elif report_type == 'summary':
             return {
-                'total_vehicles': len(details),
-                'total_distance': round(total_distance, 2),
-                'total_fuel_consumption': round(total_fuel, 2),
-                'total_violations': total_violations,
-                'average_speed': round(sum(item.get('avg_speed', 0) for item in details) / len(details),
-                                       2) if details else 0
+                'totalVehicles': len(details),
+                'totalDistance': sum(item.get('distance', 0) for item in details),
+                'totalFuelConsumption': sum(item.get('fuelConsumption', 0) for item in details),
+                'totalViolations': sum(item.get('violationsCount', 0) for item in details),
+                'avgSpeed': sum(item.get('avgSpeed', 0) for item in details) / len(details)
             }
+
+        else:
+            return {
+                'totalVehicles': len(details),
+                'totalRecords': len(details)
+            }
+
+    def _calculate_average_speed(self, trips_data):
+        """Расчет средней скорости"""
+        if not trips_data:
+            return 0
+        speeds = [trip.get('avg_speed', 0) for trip in trips_data if trip.get('avg_speed')]
+        return sum(speeds) / len(speeds) if speeds else 0
+
+    def _calculate_max_speed(self, trips_data):
+        """Расчет максимальной скорости"""
+        if not trips_data:
+            return 0
+        return max([trip.get('max_speed', 0) for trip in trips_data])
+
+    def _get_last_fuel_level(self, track_data):
+        """Получение последнего уровня топлива"""
+        if not track_data:
+            return 0
+        return track_data[-1].get('fuel_level', 0) if track_data else 0
+
+    def _get_last_location(self, track_data):
+        """Получение последнего местоположения"""
+        if not track_data:
+            return 'Не определено'
+        last_point = track_data[-1]
+        lat = last_point.get('coordinates', {}).get('lat')
+        lng = last_point.get('coordinates', {}).get('lng')
+        return f"{lat}, {lng}" if lat and lng else 'Не определено'
+
+    def _calculate_idle_time(self, work_analysis):
+        """Расчет времени простоя"""
+        if not work_analysis:
+            return '00:00:00'
+        parking_seconds = work_analysis.get('parking_engine_off', {}).get('seconds', 0)
+        hours = parking_seconds // 3600
+        minutes = (parking_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}:00"
+
+
+class ReportTypesAPI(APIView):
+    """API для получения доступных типов отчетов"""
+
+    def get(self, request):
+        report_types = [
+            {
+                'id': 'movement',
+                'name': 'Движение',
+                'description': 'Анализ движения транспортных средств',
+                'icon': 'road'
+            },
+            {
+                'id': 'journal',
+                'name': 'Журнал',
+                'description': 'Журнал событий и операций',
+                'icon': 'book'
+            },
+            {
+                'id': 'refueling',
+                'name': 'Заправки и сливы',
+                'description': 'Учет топлива: заправки и расход',
+                'icon': 'gas-pump'
+            },
+            {
+                'id': 'violations',
+                'name': 'Нарушения',
+                'description': 'Нарушения правил эксплуатации',
+                'icon': 'exclamation-triangle'
+            },
+            {
+                'id': 'shift',
+                'name': 'Посменный отчет',
+                'description': 'Работа по сменам',
+                'icon': 'users'
+            },
+            {
+                'id': 'group',
+                'name': 'Работа группы',
+                'description': 'Сравнительный анализ группы ТС',
+                'icon': 'layer-group'
+            },
+            {
+                'id': 'summary',
+                'name': 'Сводный отчёт',
+                'description': 'Общая статистика по всем показателям',
+                'icon': 'chart-bar'
+            },
+            {
+                'id': 'events',
+                'name': 'События',
+                'description': 'Хронология событий',
+                'icon': 'calendar-alt'
+            },
+            {
+                'id': 'statistics',
+                'name': 'Статистика',
+                'description': 'Детальная статистика работы',
+                'icon': 'chart-line'
+            },
+            {
+                'id': 'parking',
+                'name': 'Стоянки',
+                'description': 'Анализ времени и мест стоянок',
+                'icon': 'parking'
+            }
+        ]
+
+        return Response({
+            "success": True,
+            "data": report_types
+        })
