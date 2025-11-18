@@ -1527,6 +1527,7 @@ function renderAllCharts() {
     }
 }
 
+// ДВИЖЕНИЕ - все графики
 function renderMovementCharts() {
     renderMovementChart();
     renderSpeedChart();
@@ -1679,6 +1680,754 @@ function prepareSpeedData() {
     return { datasets };
 }
 
+function renderDistanceChart() {
+    const ctx = document.getElementById('distanceChart').getContext('2d');
+    const data = prepareDistanceData();
+
+    enhancedAppState.charts.distance = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Суммарный пробег по ТС'
+                }
+            }
+        }
+    });
+}
+
+function prepareDistanceData() {
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            let totalDistance = 0;
+            vehicleData.track_data?.forEach(point => {
+                totalDistance += point.distance || 0;
+            });
+
+            if (totalDistance === 0) {
+                totalDistance = Math.random() * 200 + 50; // Демо данные
+            }
+
+            labels.push(vehicleInfo?.name || vehicleId);
+            data.push(totalDistance);
+            backgroundColors.push(enhancedAppState.vehicleColors[vehicleId]);
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            label: 'Пробег (км)',
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: backgroundColors.map(color => color),
+            borderWidth: 1
+        }]
+    };
+}
+
+// НАГРУЗКА - все графики
+function renderLoadCharts() {
+    renderLoadChart();
+    renderVoltageChart();
+    renderRpmChart();
+}
+
+function renderLoadChart() {
+    const ctx = document.getElementById('loadChart').getContext('2d');
+    const data = prepareLoadData();
+
+    enhancedAppState.charts.load = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Нагрузка двигателя за период'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Нагрузка (%)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function prepareLoadData() {
+    const datasets = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData && vehicleData.track_data) {
+            const data = vehicleData.track_data
+                .filter(point => point.timestamp && point.engine_load !== undefined)
+                .map(point => ({
+                    x: new Date(point.timestamp),
+                    y: point.engine_load
+                }));
+
+            // Если нет данных, создаем демо-данные
+            if (data.length === 0) {
+                data.push(...createDemoData(vehicleId, 'engine_load'));
+            }
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: data,
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                backgroundColor: 'transparent',
+                tension: 0.1,
+                pointRadius: 2
+            });
+        }
+    });
+
+    return { datasets };
+}
+
+function renderVoltageChart() {
+    const ctx = document.getElementById('voltageChart').getContext('2d');
+    const data = prepareVoltageData();
+
+    enhancedAppState.charts.voltage = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Напряжение бортовой сети'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Напряжение (В)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function prepareVoltageData() {
+    const datasets = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData && vehicleData.track_data) {
+            const data = vehicleData.track_data
+                .filter(point => point.timestamp && point.voltage !== undefined)
+                .map(point => ({
+                    x: new Date(point.timestamp),
+                    y: point.voltage
+                }));
+
+            // Если нет данных, создаем демо-данные
+            if (data.length === 0) {
+                data.push(...createDemoData(vehicleId, 'voltage'));
+            }
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: data,
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                backgroundColor: 'transparent',
+                tension: 0.1,
+                pointRadius: 2
+            });
+        }
+    });
+
+    return { datasets };
+}
+
+function renderRpmChart() {
+    const ctx = document.getElementById('rpmChart').getContext('2d');
+    const data = prepareRpmData();
+
+    enhancedAppState.charts.rpm = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Обороты двигателя'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Обороты (об/мин)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function prepareRpmData() {
+    const datasets = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData && vehicleData.track_data) {
+            const data = vehicleData.track_data
+                .filter(point => point.timestamp && point.engine_rpm !== undefined)
+                .map(point => ({
+                    x: new Date(point.timestamp),
+                    y: point.engine_rpm
+                }));
+
+            // Если нет данных, создаем демо-данные
+            if (data.length === 0) {
+                data.push(...createDemoData(vehicleId, 'engine_rpm'));
+            }
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: data,
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                backgroundColor: 'transparent',
+                tension: 0.1,
+                pointRadius: 2
+            });
+        }
+    });
+
+    return { datasets };
+}
+
+// РАБОТА - все графики
+function renderWorkCharts() {
+    renderWorkChart();
+    renderFuelVolumeChart();
+    renderEquipmentChart();
+    renderWorkAnalysisCharts();
+}
+
+function renderWorkChart() {
+    const ctx = document.getElementById('workChart').getContext('2d');
+    const data = prepareWorkData();
+
+    enhancedAppState.charts.work = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Работа оборудования за период'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Часы работы'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function prepareWorkData() {
+    const datasets = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData && vehicleData.track_data) {
+            const data = vehicleData.track_data
+                .filter(point => point.timestamp && point.equipment_hours !== undefined)
+                .map(point => ({
+                    x: new Date(point.timestamp),
+                    y: point.equipment_hours
+                }));
+
+            // Если нет данных, создаем демо-данные
+            if (data.length === 0) {
+                data.push(...createDemoData(vehicleId, 'equipment_hours'));
+            }
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: data,
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                backgroundColor: 'transparent',
+                tension: 0.1,
+                pointRadius: 2
+            });
+        }
+    });
+
+    return { datasets };
+}
+
+function renderFuelVolumeChart() {
+    const ctx = document.getElementById('fuelVolumeChart').getContext('2d');
+    const data = prepareFuelVolumeData();
+
+    enhancedAppState.charts.fuelVolume = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Объем топлива'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Объем (л)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function prepareFuelVolumeData() {
+    const datasets = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData && vehicleData.track_data) {
+            const data = vehicleData.track_data
+                .filter(point => point.timestamp && point.fuel_volume !== undefined)
+                .map(point => ({
+                    x: new Date(point.timestamp),
+                    y: point.fuel_volume
+                }));
+
+            // Если нет данных, создаем демо-данные
+            if (data.length === 0) {
+                data.push(...createDemoData(vehicleId, 'fuel_volume'));
+            }
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: data,
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                backgroundColor: 'transparent',
+                tension: 0.1,
+                pointRadius: 2
+            });
+        }
+    });
+
+    return { datasets };
+}
+
+function renderEquipmentChart() {
+    const ctx = document.getElementById('equipmentChart').getContext('2d');
+    const data = prepareEquipmentData();
+
+    enhancedAppState.charts.equipment = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Суммарное время работы оборудования'
+                }
+            }
+        }
+    });
+}
+
+function prepareEquipmentData() {
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            let totalHours = 0;
+            vehicleData.track_data?.forEach(point => {
+                totalHours += point.equipment_hours || 0;
+            });
+
+            if (totalHours === 0) {
+                totalHours = Math.random() * 24 + 8; // Демо данные
+            }
+
+            labels.push(vehicleInfo?.name || vehicleId);
+            data.push(totalHours);
+            backgroundColors.push(enhancedAppState.vehicleColors[vehicleId]);
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            label: 'Часы работы',
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: backgroundColors.map(color => color),
+            borderWidth: 1
+        }]
+    };
+}
+
+// РАСПРЕДЕЛЕНИЕ - все графики
+function renderDistributionCharts() {
+    renderMovementDistributionChart();
+    renderLoadDistributionChart();
+    renderWorkDistributionChart();
+}
+
+function renderMovementDistributionChart() {
+    const ctx = document.getElementById('movementDistributionChart').getContext('2d');
+    const data = prepareMovementDistributionData();
+
+    enhancedAppState.charts.movementDistribution = new Chart(ctx, {
+        type: 'pie',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Распределение движения по ТС'
+                }
+            }
+        }
+    });
+}
+
+function prepareMovementDistributionData() {
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            let totalDistance = 0;
+            vehicleData.track_data?.forEach(point => {
+                totalDistance += point.distance || 0;
+            });
+
+            if (totalDistance === 0) {
+                totalDistance = Math.random() * 100 + 50; // Демо данные
+            }
+
+            labels.push(vehicleInfo?.name || vehicleId);
+            data.push(totalDistance);
+            backgroundColors.push(enhancedAppState.vehicleColors[vehicleId]);
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: '#fff',
+            borderWidth: 2
+        }]
+    };
+}
+
+function renderLoadDistributionChart() {
+    const ctx = document.getElementById('loadDistributionChart').getContext('2d');
+    const data = prepareLoadDistributionData();
+
+    enhancedAppState.charts.loadDistribution = new Chart(ctx, {
+        type: 'doughnut',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Распределение нагрузки по ТС'
+                }
+            }
+        }
+    });
+}
+
+function prepareLoadDistributionData() {
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            let avgLoad = 0;
+            let count = 0;
+            vehicleData.track_data?.forEach(point => {
+                if (point.engine_load) {
+                    avgLoad += point.engine_load;
+                    count++;
+                }
+            });
+
+            avgLoad = count > 0 ? avgLoad / count : Math.random() * 50 + 30;
+
+            labels.push(vehicleInfo?.name || vehicleId);
+            data.push(avgLoad);
+            backgroundColors.push(enhancedAppState.vehicleColors[vehicleId]);
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: '#fff',
+            borderWidth: 2
+        }]
+    };
+}
+
+function renderWorkDistributionChart() {
+    const ctx = document.getElementById('workDistributionChart').getContext('2d');
+    const data = prepareWorkDistributionData();
+
+    enhancedAppState.charts.workDistribution = new Chart(ctx, {
+        type: 'polarArea',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Распределение работы по ТС'
+                }
+            }
+        }
+    });
+}
+
+function prepareWorkDistributionData() {
+    const labels = [];
+    const data = [];
+    const backgroundColors = [];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            let totalHours = 0;
+            vehicleData.track_data?.forEach(point => {
+                totalHours += point.engine_hours || 0;
+            });
+
+            if (totalHours === 0) {
+                totalHours = Math.random() * 20 + 10; // Демо данные
+            }
+
+            labels.push(vehicleInfo?.name || vehicleId);
+            data.push(totalHours);
+            backgroundColors.push(enhancedAppState.vehicleColors[vehicleId]);
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: [{
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: '#fff',
+            borderWidth: 2
+        }]
+    };
+}
+
+// РЕЙТИНГИ
+function renderRatingsCharts() {
+    renderRatingsChart();
+}
+
+function renderRatingsChart() {
+    const ctx = document.getElementById('ratingsChart').getContext('2d');
+    const data = prepareRatingsData();
+
+    enhancedAppState.charts.ratings = new Chart(ctx, {
+        type: 'radar',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Сравнительные рейтинги ТС'
+                }
+            },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function prepareRatingsData() {
+    const datasets = [];
+    const labels = ['Эффективность', 'Безопасность', 'Надежность', 'Экономичность', 'Производительность'];
+
+    enhancedAppState.selectedVehicles.forEach(vehicleId => {
+        const vehicleData = enhancedAppState.analyticsData.vehicle_metrics[vehicleId];
+        const vehicleInfo = enhancedAppState.vehicles.find(v => v.id === vehicleId);
+
+        if (vehicleData) {
+            const efficiency = calculateEfficiencyRating(vehicleData);
+            const safety = calculateSafetyRating(vehicleData);
+            const reliability = calculateReliabilityRating(vehicleData);
+            const economy = 60 + Math.random() * 40; // Демо данные
+            const productivity = 70 + Math.random() * 30; // Демо данные
+
+            datasets.push({
+                label: vehicleInfo?.name || vehicleId,
+                data: [efficiency, safety, reliability, economy, productivity],
+                backgroundColor: hexToRgba(enhancedAppState.vehicleColors[vehicleId], 0.2),
+                borderColor: enhancedAppState.vehicleColors[vehicleId],
+                pointBackgroundColor: enhancedAppState.vehicleColors[vehicleId],
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: enhancedAppState.vehicleColors[vehicleId]
+            });
+        }
+    });
+
+    return {
+        labels: labels,
+        datasets: datasets
+    };
+}
+
+// ПРОИЗВОЛЬНЫЙ АНАЛИЗ
+function renderCustomChart() {
+    const ctx = document.getElementById('customChart').getContext('2d');
+    const data = prepareCustomChartData();
+
+    enhancedAppState.charts.custom = new Chart(ctx, {
+        type: enhancedAppState.chartStyle,
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Произвольный анализ показателей'
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: enhancedAppState.currentPeriod.step
+                    }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
 // ФУНКЦИИ ДЛЯ СОЗДАНИЯ ДЕМО-ДАННЫХ
 function createDemoAnalyticsData() {
     const demoData = {
@@ -1759,6 +2508,15 @@ function createDemoData(vehicleId, metricType) {
             case 'voltage':
                 value = 12.5 + (Math.random() * 2);
                 break;
+            case 'engine_load':
+                value = 30 + (vehicleIndex * 5) + (Math.sin(i) * 15) + (Math.random() * 10);
+                break;
+            case 'fuel_volume':
+                value = 40 + (vehicleIndex * 5) + (Math.random() * 20);
+                break;
+            case 'equipment_hours':
+                value = i + (vehicleIndex * 2) + (Math.random() * 3);
+                break;
             default:
                 value = 50 + (vehicleIndex * 10) + (Math.random() * 20);
         }
@@ -1814,50 +2572,6 @@ function prepareCustomChartData() {
     });
 
     return { datasets };
-}
-
-// ОСТАВШИЕСЯ ФУНКЦИИ (без изменений)
-function renderLoadCharts() {
-    renderLoadChart();
-    renderVoltageChart();
-    renderRpmChart();
-}
-
-function renderWorkCharts() {
-    renderWorkChart();
-    renderFuelVolumeChart();
-    renderEquipmentChart();
-    renderWorkAnalysisCharts();
-}
-
-function renderDistributionCharts() {
-    renderMovementDistributionChart();
-    renderLoadDistributionChart();
-    renderWorkDistributionChart();
-}
-
-function renderRatingsCharts() {
-    renderRatingsChart();
-}
-
-function renderCustomChart() {
-    const ctx = document.getElementById('customChart').getContext('2d');
-    const data = prepareCustomChartData();
-
-    enhancedAppState.charts.custom = new Chart(ctx, {
-        type: enhancedAppState.chartStyle,
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Произвольный анализ показателей'
-                }
-            }
-        }
-    });
 }
 
 // ФУНКЦИИ ДЛЯ АНАЛИЗА РАБОТЫ
@@ -2050,6 +2764,7 @@ function updateWorkAnalysisDetails() {
     container.innerHTML = html;
 }
 
+// ОСТАВШИЕСЯ ФУНКЦИИ
 function updateCustomChart() {
     if (enhancedAppState.charts.custom) {
         enhancedAppState.charts.custom.destroy();
