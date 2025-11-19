@@ -1,7 +1,6 @@
 # dashboard/urls.py
 from django.urls import path
 from . import views
-from .api_views import DashboardDataAPI, VehicleDetailAPI
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
@@ -12,7 +11,6 @@ urlpatterns = [
     path('support/', views.support, name='support'),
 
     # API endpoints
-    path('api/data/', DashboardDataAPI.as_view(), name='dashboard_api'),
-    path('api/vehicle/<str:vehicle_id>/', VehicleDetailAPI.as_view(), name='vehicle_detail_api'),
-
+    path('api/data/', views.dashboard_api, name='dashboard_api'),
+    path('api/vehicle/<str:vehicle_id>/', views.vehicle_detail_api, name='vehicle_detail_api'),
 ]

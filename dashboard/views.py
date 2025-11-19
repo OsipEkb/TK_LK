@@ -1,7 +1,9 @@
+# dashboard/views.py
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from .services import AutoGraphDashboardService  # ИМПОРТИРУЕМ ИЗ ТЕКУЩЕЙ ДИРЕКТОРИИ
+from django.http import JsonResponse
+from .services import AutoGraphDashboardService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,81 +11,102 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def dashboard(request):
-    """ОСНОВНОЙ дашборд с улучшенными данными (включая топливо)"""
+    """ОСНОВНОЙ дашборд"""
     try:
-        service = AutoGraphDashboardService()  # ИСПОЛЬЗУЕМ НАШ НОВЫЙ СЕРВИС
-        if service.login("Osipenko", "Osipenko"):
-            schemas = service.get_schemas()
-            if schemas:
-                schema_id = schemas[0].get('ID')
-                schema_name = schemas[0].get('Name', 'Основная схема')
+        service = AutoGraphDashboardService()
+        dashboard_data = service.get_dashboard_data()
 
-                # ИСПОЛЬЗУЕМ УЛУЧШЕННЫЙ МЕТОД С ТОПЛИВОМ
-                dashboard_data = service.get_enhanced_dashboard_summary(schema_id)
+        if dashboard_data:
+            context = {
+                'schema_name': dashboard_data.get('schema_name', 'Osipenko'),
+                'total_vehicles': dashboard_data.get('total_vehicles', 0),
+                'vehicles': dashboard_data.get('vehicles', []),
+                'current_time': timezone.now(),
+            }
+        else:
+            context = {
+                'schema_name': 'Osipenko',
+                'total_vehicles': 0,
+                'vehicles': [],
+                'current_time': timezone.now(),
+            }
 
-                if dashboard_data:
-                    context = {
-                        'schema_name': schema_name,
-                        'total_vehicles': dashboard_data.get('total_vehicles', 0),
-                        'online_vehicles': dashboard_data.get('online_vehicles', 0),
-                        'offline_vehicles': dashboard_data.get('offline_vehicles', 0),
-                        'moving_vehicles': len([v for v in dashboard_data.get('vehicles', []) if v.get('speed', 0) > 0]),
-                        'vehicles': dashboard_data.get('vehicles', []),
-                        'current_time': timezone.now(),
-                        'last_update': dashboard_data.get('last_update'),
-                        'vehicles_with_fuel': len([v for v in dashboard_data.get('vehicles', []) if v.get('fuel_level') is not None]),
-                    }
-                else:
-                    context = {
-                        'schema_name': schema_name,
-                        'total_vehicles': 0,
-                        'online_vehicles': 0,
-                        'offline_vehicles': 0,
-                        'moving_vehicles': 0,
-                        'vehicles': [],
-                        'current_time': timezone.now(),
-                        'vehicles_with_fuel': 0,
-                    }
-
-                return render(request, 'dashboard/dashboard.html', context)
-
-        # Fallback если сервис недоступен
-        context = {
-            'schema_name': 'Основная схема',
-            'total_vehicles': 0,
-            'online_vehicles': 0,
-            'offline_vehicles': 0,
-            'moving_vehicles': 0,
-            'vehicles': [],
-            'current_time': timezone.now(),
-            'vehicles_with_fuel': 0,
-        }
         return render(request, 'dashboard/dashboard.html', context)
 
     except Exception as e:
         logger.error(f"Dashboard view error: {e}")
         context = {
-            'schema_name': 'Основная схема',
+            'schema_name': 'Osipenko',
             'total_vehicles': 0,
-            'online_vehicles': 0,
-            'offline_vehicles': 0,
-            'moving_vehicles': 0,
             'vehicles': [],
             'current_time': timezone.now(),
-            'vehicles_with_fuel': 0,
         }
         return render(request, 'dashboard/dashboard.html', context)
 
 
-# Остальные view функции остаются без изменений, но используют новый сервис
+@login_required
+def dashboard_api(request):
+    """API для получения данных дашборда"""
+    try:
+        logger.info("🚀 DASHBOARD API CALLED")
+
+        service = AutoGraphDashboardService()
+        dashboard_data = service.get_dashboard_data()
+
+        if dashboard_data:
+            logger.info(f"✅ Dashboard data received: {len(dashboard_data.get('vehicles', []))} vehicles")
+
+            return JsonResponse({
+                'success': True,
+                'data': dashboard_data
+            })
+        else:
+            logger.error("❌ No dashboard data received")
+            return JsonResponse({
+                'success': False,
+                'error': 'Не удалось получить данные дашборда'
+            })
+
+    except Exception as e:
+        logger.error(f"Dashboard API error: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Внутренняя ошибка сервера: {str(e)}'
+        })
+
+
+@login_required
+def vehicle_detail_api(request, vehicle_id):
+    """API для получения детальной информации по ТС"""
+    try:
+        service = AutoGraphDashboardService()
+        vehicle_data = service.get_vehicle_details(vehicle_id)
+
+        if vehicle_data:
+            return JsonResponse({
+                'success': True,
+                'data': vehicle_data
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'ТС не найдено'
+            })
+
+    except Exception as e:
+        logger.error(f"Vehicle detail API error: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Ошибка получения данных: {str(e)}'
+        })
+
+
 @login_required
 def vehicles_page(request):
-    """Страница транспорта - теперь использует исторические данные из vehicles/services.py"""
-    # Эта функция теперь должна использовать vehicles/services.py
-    # Оставляем как есть или можно удалить если не используется
+    """Страница транспорта"""
     return render(request, 'vehicles/vehicles.html', {
         'all_vehicles': [],
-        'schema_name': 'Основная схема',
+        'schema_name': 'Osipenko',
         'current_time': timezone.now(),
     })
 
