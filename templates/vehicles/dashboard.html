@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Мониторинг транспорта{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-car me-2"></i>Мониторинг транспорта
+                    </h1>
+                    <p class="text-muted mb-0">Онлайн данные по транспортным средствам</p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i> Обновить
+                    </button>
+                    <a href="{% url 'vehicles:analytics' %}" class="btn btn-primary">
+                        <i class="fas fa-chart-line me-1"></i> Аналитика
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="row" id="statsContainer">
+                <div class="col-md-3 mb-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-2">Всего ТС</h6>
+                                    <h3 class="mb-0" id="totalVehicles">...</h3>
+                                </div>
+                                <i class="fas fa-car fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-2">Онлайн</h6>
+                                    <h3 class="mb-0" id="onlineVehicles">...</h3>
+                                </div>
+                                <i class="fas fa-wifi fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-2">Нет связи</h6>
+                                    <h3 class="mb-0" id="offlineVehicles">...</h3>
+                                </div>
+                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-2">Обновлено</h6>
+                                    <h6 class="mb-0" id="updateTime">{{ current_time|date:"H:i:s" }}</h6>
+                                </div>
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица ТС -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Транспортные средства
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Поиск...">
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-hover mb-0" id="vehiclesTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th width="5%">Статус</th>
+                                    <th width="25%">ТС</th>
+                                    <th width="15%">Госномер</th>
+                                    <th width="15%">Скорость</th>
+                                    <th width="20%">Местоположение</th>
+                                    <th width="20%">Последнее обновление</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Загрузка...</span>
+                                        </div>
+                                        <p class="mt-2 mb-0">Загрузка данных...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div class="text-center bg-white p-4 rounded">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+        <h5>Загрузка данных...</h5>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Глобальное состояние
+let vehiclesData = [];
+let filteredVehicles = [];
+
+// Основные функции
+async function loadData() {
+    try {
+        showLoading(true);
+        
+        // Загружаем онлайн данные
+        const response = await fetch('/vehicles/api/online/');
+        const data = await response.json();
+        
+        if (data.success) {
+            vehiclesData = data.data.vehicles;
+            filteredVehicles = [...vehiclesData];
+            
+            updateStats(data.data);
+            renderVehiclesTable();
+            updateCurrentTime();
+        } else {
+            showError(data.error || 'Ошибка загрузки данных');
+        }
+    } catch (error) {
+        showError('Ошибка соединения: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function updateStats(data) {
+    document.getElementById('totalVehicles').textContent = data.total_count || 0;
+    document.getElementById('onlineVehicles').textContent = data.online_count || 0;
+    document.getElementById('offlineVehicles').textContent = data.total_count - (data.online_count || 0);
+}
+
+function renderVehiclesTable() {
+    const tbody = document.querySelector('#vehiclesTable tbody');
+    
+    if (!filteredVehicles || filteredVehicles.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="fas fa-exclamation-circle me-2"></i>Нет данных о транспортных средствах
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    filteredVehicles.forEach(vehicle => {
+        const statusBadge = getStatusBadge(vehicle.status);
+        const speedText = vehicle.speed ? `${vehicle.speed} км/ч` : '—';
+        const locationText = vehicle.location ? 
+            `${vehicle.location.lat?.toFixed(6)}, ${vehicle.location.lng?.toFixed(6)}` : '—';
+        
+        html += `
+            <tr>
+                <td>${statusBadge}</td>
+                <td>
+                    <div class="fw-bold">${vehicle.name}</div>
+                    <small class="text-muted">ID: ${vehicle.id}</small>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark">${vehicle.license_plate || '—'}</span>
+                </td>
+                <td>${speedText}</td>
+                <td><small>${locationText}</small></td>
+                <td>
+                    <small>${vehicle.last_update ? formatDate(vehicle.last_update) : '—'}</small>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'online': '<span class="badge bg-success">Онлайн</span>',
+        'no_data_recently': '<span class="badge bg-warning">Нет данных</span>',
+        'offline': '<span class="badge bg-danger">Оффлайн</span>'
+    };
+    return badges[status] || badges['offline'];
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('ru-RU');
+    } catch {
+        return dateString;
+    }
+}
+
+// Вспомогательные функции
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'flex' : 'none';
+}
+
+function showError(message) {
+    alert('Ошибка: ' + message);
+}
+
+function refreshData() {
+    loadData();
+}
+
+function updateCurrentTime() {
+    document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('ru-RU');
+}
+
+// Поиск
+function searchVehicles() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    
+    if (!searchTerm) {
+        filteredVehicles = [...vehiclesData];
+    } else {
+        filteredVehicles = vehiclesData.filter(v => 
+            v.name.toLowerCase().includes(searchTerm) || 
+            (v.license_plate && v.license_plate.toLowerCase().includes(searchTerm)) ||
+            v.id.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    renderVehiclesTable();
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    loadData();
+    
+    // Обновляем данные каждые 30 секунд
+    setInterval(refreshData, 30000);
+    
+    // Обновляем время каждую секунду
+    setInterval(updateCurrentTime, 1000);
+    
+    // Поиск
+    document.getElementById('searchInput').addEventListener('input', searchVehicles);
+});
+</script>
+{% endblock %}

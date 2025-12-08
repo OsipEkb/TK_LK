@@ -1,131 +1,136 @@
-# dashboard/views.py
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
-from .services import AutoGraphDashboardService
 import logging
+from datetime import datetime
+from .services import AutoGraphService
 
 logger = logging.getLogger(__name__)
 
 
-@login_required
-def dashboard(request):
-    """ОСНОВНОЙ дашборд"""
-    try:
-        service = AutoGraphDashboardService()
-        dashboard_data = service.get_dashboard_data()
+def dashboard_view(request):
+    """Основной дашборд"""
+    token = request.session.get('autograph_token')
+    schema_id = request.session.get('autograph_schema_id')
 
-        if dashboard_data:
-            context = {
-                'schema_name': dashboard_data.get('schema_name', 'Osipenko'),
-                'total_vehicles': dashboard_data.get('total_vehicles', 0),
-                'vehicles': dashboard_data.get('vehicles', []),
-                'current_time': timezone.now(),
-            }
-        else:
-            context = {
-                'schema_name': 'Osipenko',
-                'total_vehicles': 0,
-                'vehicles': [],
-                'current_time': timezone.now(),
-            }
+    if not token or not schema_id:
+        return redirect('users:login')
 
-        return render(request, 'dashboard/dashboard.html', context)
-
-    except Exception as e:
-        logger.error(f"Dashboard view error: {e}")
-        context = {
-            'schema_name': 'Osipenko',
-            'total_vehicles': 0,
-            'vehicles': [],
-            'current_time': timezone.now(),
-        }
-        return render(request, 'dashboard/dashboard.html', context)
-
-
-@login_required
-def dashboard_api(request):
-    """API для получения данных дашборда"""
-    try:
-        logger.info("🚀 DASHBOARD API CALLED")
-
-        service = AutoGraphDashboardService()
-        dashboard_data = service.get_dashboard_data()
-
-        if dashboard_data:
-            logger.info(f"✅ Dashboard data received: {len(dashboard_data.get('vehicles', []))} vehicles")
-
-            return JsonResponse({
-                'success': True,
-                'data': dashboard_data
-            })
-        else:
-            logger.error("❌ No dashboard data received")
-            return JsonResponse({
-                'success': False,
-                'error': 'Не удалось получить данные дашборда'
-            })
-
-    except Exception as e:
-        logger.error(f"Dashboard API error: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': f'Внутренняя ошибка сервера: {str(e)}'
-        })
-
-
-@login_required
-def vehicle_detail_api(request, vehicle_id):
-    """API для получения детальной информации по ТС"""
-    try:
-        service = AutoGraphDashboardService()
-        vehicle_data = service.get_vehicle_details(vehicle_id)
-
-        if vehicle_data:
-            return JsonResponse({
-                'success': True,
-                'data': vehicle_data
-            })
-        else:
-            return JsonResponse({
-                'success': False,
-                'error': 'ТС не найдено'
-            })
-
-    except Exception as e:
-        logger.error(f"Vehicle detail API error: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': f'Ошибка получения данных: {str(e)}'
-        })
-
-
-@login_required
-def vehicles_page(request):
-    """Страница транспорта"""
-    return render(request, 'vehicles/vehicles.html', {
-        'all_vehicles': [],
-        'schema_name': 'Osipenko',
-        'current_time': timezone.now(),
+    return render(request, 'dashboard/dashboard.html', {
+        'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'schema_name': request.session.get('autograph_schema_name', 'Неизвестно'),
+        'username': request.session.get('autograph_username', 'Пользователь'),
     })
 
 
-@login_required
-def reports(request):
-    return render(request, 'reports/reports.html')
+def dashboard_api_view(request):
+    """API для получения данных дашборда"""
+    token = request.session.get('autograph_token')
+    schema_id = request.session.get('autograph_schema_id')
 
+    if not token or not schema_id:
+        return JsonResponse({'success': False, 'error': 'Требуется авторизация'}, status=401)
 
-@login_required
-def retransmission(request):
-    return render(request, 'retransmission/retransmission.html')
+    try:
+        service = AutoGraphService(token=token)
 
+        # 1. Получаем все устройства
+        devices = service.get_devices(schema_id)
 
-@login_required
-def billing(request):
-    return render(request, 'billing/billing.html')
+        if not devices:
+            return JsonResponse({
+                'success': True,
+                'data': {
+                    'vehicles': [],
+                    'total': 0,
+                    'online': 0,
+                    'warning': 0,
+                    'offline': 0,
+                }
+            })
 
+        # 2. Получаем онлайн данные для ВСЕХ устройств
+        device_ids = [d['id'] for d in devices]
+        online_data = service.get_online_data(schema_id, device_ids)
 
-@login_required
-def support(request):
-    return render(request, 'support/support.html')
+        # 3. Формируем данные для дашборда
+        vehicles = []
+        stats = {'total': 0, 'online': 0, 'warning': 0, 'offline': 0}
+
+        for device in devices:
+            device_id = device['id']
+            online = online_data.get(device_id) if isinstance(online_data, dict) else None
+
+            # Определяем статус
+            status = 'offline'
+            if online:
+                # Проверяем скорость
+                speed = 0
+                if 'Speed' in online:
+                    try:
+                        speed = float(online['Speed'])
+                    except:
+                        pass
+
+                if speed > 1:  # Если движется
+                    status = 'online'
+                else:  # Если стоит
+                    status = 'warning'
+
+            stats[status] += 1
+            stats['total'] += 1
+
+            # Скорость
+            speed = 0
+            if online and 'Speed' in online:
+                try:
+                    speed = float(online['Speed'])
+                except:
+                    pass
+
+            # Топливо - используем существующий метод
+            fuel_volume = 0
+            if online:
+                fuel_data = service.extract_fuel_data(online)
+                fuel_volume = fuel_data.get('total_volume', 0)
+
+            # Адрес
+            address = online.get('Address', '') if online else ''
+
+            # Время обновления
+            last_update = ''
+            if online:
+                for field in ['DTLocal', 'DT', '_LastDataLocal']:
+                    if field in online and online[field]:
+                        last_update = online[field]
+                        break
+
+            vehicles.append({
+                'id': device_id,
+                'name': device['name'],
+                'license_plate': device['reg_num'],
+                'serial': device['serial'],
+                'status': status,
+                'speed': speed,
+                'fuel_volume': fuel_volume,  # Объем топлива в литрах
+                'address': address,
+                'last_update': last_update,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'vehicles': vehicles,
+                'total': stats['total'],
+                'online': stats['online'],
+                'warning': stats['warning'],
+                'offline': stats['offline'],
+                'timestamp': datetime.now().isoformat(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Ошибка API дашборда: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

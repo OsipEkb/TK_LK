@@ -1,737 +1,536 @@
-<!-- templates/dashboard/dashboard.html -->
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Главный дашборд - Мониторинг транспорта</title>
+{% extends 'base.html' %}
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% block page_title %}Дашборд - Autograph Monitor{% endblock %}
 
-    <style>
-        .vehicle-status-online { color: #28a745; }
-        .vehicle-status-warning { color: #ffc107; }
-        .vehicle-status-offline { color: #dc3545; }
-        .vehicle-status-no-connection { color: #ff6b35; }
-        .vehicle-status-long-offline { color: #6c757d; }
-
-        /* Цветовые стили для строк по статусу связи */
-        .connection-online {
-            border-left: 4px solid #28a745;
-            background-color: rgba(40, 167, 69, 0.05);
-        }
-        .connection-warning {
-            border-left: 4px solid #ffc107;
-            background-color: rgba(255, 193, 7, 0.05);
-        }
-        .connection-offline {
-            border-left: 4px solid #dc3545;
-            background-color: rgba(220, 53, 69, 0.05);
-        }
-
-        .location-truncate {
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            cursor: help;
-        }
-        .speed-moving { color: #28a745; font-weight: bold; }
-        .speed-stopped { color: #6c757d; }
-        .fuel-low { color: #dc3545; font-weight: bold; }
-        .fuel-normal { color: #28a745; }
-        .fuel-na { color: #6c757d; }
-        .status-badge { font-size: 0.75em; }
-        .card-hover:hover {
-            transform: translateY(-2px);
-            transition: transform 0.2s ease;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.8);
-            z-index: 9999;
-            display: none;
-        }
-        .connection-badge {
-            font-size: 0.7em;
-            margin-left: 5px;
-        }
-        .status-changed {
-            animation: pulse 1.5s ease-in-out;
-        }
-        @keyframes pulse {
-            0% { background-color: transparent; }
-            50% { background-color: rgba(0, 123, 255, 0.2); }
-            100% { background-color: transparent; }
-        }
-
-        /* Убираем стандартные границы таблицы для лучшего вида */
-        .table > :not(caption) > * > * {
-            border-bottom-width: 0;
-        }
-        .table tbody tr {
-            transition: all 0.3s ease;
-        }
-        .table tbody tr:hover {
-            transform: translateX(2px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .stat-card {
-            transition: all 0.3s ease;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }
-
-        .license-plate {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-        }
-    </style>
-</head>
-<body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-tachometer-alt me-2"></i>Autograph Monitor
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/dashboard/">
-                            <i class="fas fa-home me-1"></i> Дашборд
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/vehicles/">
-                            <i class="fas fa-truck me-1"></i> Транспорт
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/reports/">
-                            <i class="fas fa-chart-bar me-1"></i> Отчеты
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/retransmission/">
-                            <i class="fas fa-satellite-dish me-1"></i> Ретрансляция
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/billing/">
-                            <i class="fas fa-credit-card me-1"></i> Биллинг
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/support/">
-                            <i class="fas fa-headset me-1"></i> Поддержка
-                        </a>
-                    </li>
-                </ul>
-                <div class="navbar-nav">
-                    <span class="navbar-text me-3">
-                        <i class="fas fa-user me-1"></i> {{ request.user.username }}
-                    </span>
-                    <a class="nav-link" href="/accounts/logout/">
-                        <i class="fas fa-sign-out-alt me-1"></i> Выход
-                    </a>
+{% block content %}
+<div class="dashboard-container">
+    <!-- Заголовок дашборда -->
+    <div class="page-header mb-4">
+        <div class="container-fluid page-header-content">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center">
+                        <div class="header-icon-wrapper me-4">
+                            <i class="fas fa-tachometer-alt fa-3x text-gold"></i>
+                        </div>
+                        <div>
+                            <h1 class="h1 mb-2 fw-bold">Мониторинг ТС в реальном времени</h1>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-gold">
+                                    <i class="fas fa-plug me-1"></i> AutoGRAPH Активно
+                                </span>
+                                <span class="text-light opacity-75">
+                                    <i class="fas fa-user me-1"></i> {{ username|default:"Система" }}
+                                </span>
+                                <span class="text-light opacity-75">
+                                    <i class="fas fa-database me-1"></i> {{ schema_name|default:"AutoGRAPH" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="globalLoading">
-        <div class="d-flex justify-content-center align-items-center h-100">
-            <div class="text-center">
-                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-                <p>Загрузка данных...</p>
+                <div class="col-lg-4 text-end">
+                    <!-- Оставлено пустым -->
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="container-fluid mt-4">
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0">
-                <i class="fas fa-tachometer-alt me-2"></i>Мониторинг транспорта
-                <span id="loadingSpinner" class="spinner-border spinner-border-sm text-primary ms-2" style="display: none;" role="status">
-                    <span class="visually-hidden">Загрузка...</span>
-                </span>
-            </h1>
-            <div>
-                <span class="badge bg-secondary me-2" id="schemaName">{{ schema_name }}</span>
-                <span class="badge bg-success">
-                    <i class="fas fa-clock me-1"></i> Автообновление: 5 мин
-                </span>
+    <div class="container-fluid">
+        <!-- Статистика -->
+        <div class="stats-grid mb-4">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <div class="stat-value" id="totalVehicles">0</div>
+                <div class="stat-label">Всего ТС</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-wifi"></i>
+                </div>
+                <div class="stat-value" id="onlineVehicles">0</div>
+                <div class="stat-label">В движении</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-parking"></i>
+                </div>
+                <div class="stat-value" id="parkingVehicles">0</div>
+                <div class="stat-label">На стоянке</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <div class="stat-value" id="inactiveVehicles">0</div>
+                <div class="stat-label">Неактивно</div>
             </div>
         </div>
 
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card bg-primary text-white h-100 stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title text-white-50">Всего ТС</h6>
-                                <h2 id="totalVehicles" class="mb-0">{{ total_vehicles }}</h2>
-                                <small class="opacity-75">в системе</small>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-truck fa-2x opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card bg-success text-white h-100 stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title text-white-50">На связи</h6>
-                                <h2 id="onlineVehicles" class="mb-0">0</h2>
-                                <small class="opacity-75">< 1 часа</small>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-signal fa-2x opacity-50"></i>
+        <!-- Таблица ТС -->
+        <div class="row">
+            <div class="col-12">
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <h5 class="panel-title">
+                            <i class="fas fa-table"></i>
+                            Транспортные средства
+                        </h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-gold active" id="btnAll" onclick="dashboard.filterByStatus('all')">
+                                    Все (<span id="countAll">0</span>)
+                                </button>
+                                <button class="btn btn-sm btn-success" id="btnOnline" onclick="dashboard.filterByStatus('online')">
+                                    В движении (<span id="countOnline">0</span>)
+                                </button>
+                                <button class="btn btn-sm btn-warning" id="btnParking" onclick="dashboard.filterByStatus('parking')">
+                                    На стоянке (<span id="countParking">0</span>)
+                                </button>
+                                <button class="btn btn-sm btn-danger" id="btnInactive" onclick="dashboard.filterByStatus('inactive')">
+                                    Неактивно (<span id="countInactive">0</span>)
+                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card bg-warning text-white h-100 stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title text-white-50">Без связи</h6>
-                                <h2 id="noConnectionVehicles" class="mb-0">0</h2>
-                                <small class="opacity-75">1-24 часа</small>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card bg-danger text-white h-100 stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <h6 class="card-title text-white-50">Длительный оффлайн</h6>
-                                <h2 id="longOfflineVehicles" class="mb-0">0</h2>
-                                <small class="opacity-75">> 24 часов</small>
-                            </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-clock fa-2x opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filters and Search -->
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                    <input type="text" id="searchVehicles" class="form-control" placeholder="Поиск по названию, госномеру...">
-                    <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="btn-group float-end">
-                    <button class="btn btn-outline-primary btn-sm active" data-filter="all">Все ТС</button>
-                    <button class="btn btn-outline-success btn-sm" data-filter="online">На связи</button>
-                    <button class="btn btn-outline-warning btn-sm" data-filter="no_connection">Без связи</button>
-                    <button class="btn btn-outline-danger btn-sm" data-filter="long_offline">Длительный оффлайн</button>
-                    <button class="btn btn-outline-info btn-sm" data-filter="moving">В движении</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Vehicles Table -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-truck me-2"></i>Транспортные средства
-                    <small class="text-muted ms-2" id="lastUpdate">
-                        {% if vehicles %}Обновлено: {{ current_time|date:"H:i:s" }}{% else %}Загрузка...{% endif %}
-                    </small>
-                    <span class="badge bg-primary ms-2" id="vehiclesCount">{{ vehicles|length }}</span>
-                </h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="20%">Транспортное средство</th>
-                                <th width="12%">Госномер</th>
-                                <th width="10%">Статус</th>
-                                <th width="8%">Скорость</th>
-                                <th width="12%">Топливо</th>
-                                <th width="23%">Локация</th>
-                                <th width="15%">Последнее обновление</th>
-                            </tr>
-                        </thead>
-                        <tbody id="vehiclesTable">
-                            {% if vehicles %}
-                                {% for vehicle in vehicles %}
-                                <tr data-vehicle-id="{{ vehicle.id }}"
-                                    class="connection-{{ vehicle.connection_status|default:'offline' }}">
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-truck me-2 text-muted"></i>
-                                            <div>
-                                                <strong>{{ vehicle.name }}</strong>
-                                                {% if vehicle.serial %}
-                                                <br><small class="text-muted">Серийный: {{ vehicle.serial }}</small>
-                                                {% endif %}
+                    <div class="panel-body">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover" id="vehiclesTable">
+                                <thead>
+                                    <tr>
+                                        <th>ТС</th>
+                                        <th>Гос. номер</th>
+                                        <th>Статус</th>
+                                        <th>Скорость</th>
+                                        <th>Топливо</th>
+                                        <th>Местоположение</th>
+                                        <th>Последнее обновление</th>
+                                        <th>Активность</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vehiclesTableBody">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5">
+                                            <div class="spinner-border text-gold" role="status">
+                                                <span class="visually-hidden">Загрузка...</span>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if vehicle.license_plate and vehicle.license_plate != "—" %}
-                                            <span class="badge bg-dark license-plate">{{ vehicle.license_plate }}</span>
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if vehicle.connection_status == 'online' %}
-                                            {% if vehicle.speed > 0 %}
-                                                <span class="badge bg-success status-badge">В движении</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary status-badge">На стоянке</span>
-                                            {% endif %}
-                                        {% elif vehicle.connection_status == 'no_connection' %}
-                                            <span class="badge bg-warning status-badge">Без связи</span>
-                                        {% elif vehicle.connection_status == 'long_offline' %}
-                                            <span class="badge bg-danger status-badge">Длительный оффлайн</span>
-                                        {% else %}
-                                            <span class="badge bg-light text-dark status-badge">Нет данных</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if vehicle.speed > 0 %}
-                                            <span class="speed-moving">{{ vehicle.speed|floatformat:0 }} км/ч</span>
-                                        {% else %}
-                                            <span class="speed-stopped">0 км/ч</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if vehicle.fuel_level is not None %}
-                                            {% if vehicle.fuel_level < 10 %}
-                                                <span class="fuel-low">{{ vehicle.fuel_level }} л</span>
-                                            {% else %}
-                                                <span class="fuel-normal">{{ vehicle.fuel_level }} л</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="fuel-na">—</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="location-truncate" title="{{ vehicle.address|default:'Локация не доступна' }}">
-                                            {{ vehicle.address|default:"—" }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            {{ vehicle.last_update|default:"—" }}
-                                        </small>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td colspan="7" class="text-center py-4">
-                                        <div class="text-muted">
-                                            <i class="fas fa-truck fa-2x mb-2"></i>
-                                            <p>Загрузка данных транспорта...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
+                                            <p class="text-muted mt-2 mb-0">Загрузка данных...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div class="text-muted">
+                                <span id="tableCount">0</span> записей
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-dark-custom" onclick="dashboard.prevPage()" id="prevBtn" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button class="btn btn-sm btn-gold" id="pageInfo">Стр. 1</button>
+                                <button class="btn btn-sm btn-dark-custom" onclick="dashboard.nextPage()" id="nextBtn" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Footer -->
-        <div class="row mt-4">
-            <div class="col-12 text-center">
-                <small class="text-muted">
-                    Autograph Monitor •
-                    <span id="currentTime">{{ current_time|date:"d.m.Y H:i:s" }}</span> •
-                    <span id="connectionStatus" class="text-success">● Онлайн</span>
-                    <span id="autoRefreshStatus" class="ms-2 text-muted small">Следующее обновление: <span id="nextUpdateTime"></span></span>
-                </small>
-            </div>
-        </div>
     </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Оверлей загрузки -->
+<div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h4 id="loadingTitle" class="mt-4 mb-2 text-gold">Загрузка данных</h4>
+        <p id="loadingMessage" class="text-light opacity-75 mb-0">Получение информации о ТС...</p>
+    </div>
+</div>
+{% endblock %}
 
-    <script>
-        // Конфигурация
-        const CONFIG = {
-            autoRefreshInterval: 300000, // 5 минут
-            apiEndpoints: {
-                dashboard: '/dashboard/api/data/',
-                vehicleDetail: '/dashboard/api/vehicle/'
-            }
-        };
+{% block extra_js %}
+<script>
+class Dashboard {
+    constructor() {
+        this.vehicles = [];
+        this.filteredVehicles = [];
+        this.currentPage = 1;
+        this.pageSize = 10;
+        this.currentFilter = 'all';
+        this.timer = null;
+        this.refreshInterval = 30000; // 30 секунд
+    }
 
-        // Состояние приложения
-        let appState = {
-            vehicles: [],
-            filteredVehicles: [],
-            currentFilter: 'all',
-            searchTerm: '',
-            autoRefreshEnabled: true,
-            autoRefreshTimer: null
-        };
+    init() {
+        console.log('🚀 Инициализация дашборда');
+        this.loadData();
+        this.setupEventListeners();
+        this.startAutoRefresh();
+    }
 
-        // Основные функции
-        async function loadData() {
-            console.log('🔄 Загрузка данных...');
+    async loadData() {
+        this.showLoading('Загрузка данных', 'Получение информации о ТС...');
 
-            try {
-                showLoading(true);
-
-                const response = await fetch(CONFIG.apiEndpoints.dashboard);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const response = await fetch('/dashboard/api/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
                 }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    processDashboardData(data.data);
-                    updateConnectionStatus(true);
-                } else {
-                    throw new Error(data.error || 'Ошибка API');
-                }
-
-            } catch (error) {
-                console.error('💥 Ошибка загрузки:', error);
-                updateConnectionStatus(false);
-                showError('Ошибка загрузки данных');
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        function processDashboardData(dashboardData) {
-            console.log('🎯 Обработка данных:', dashboardData);
-
-            // Сохраняем данные
-            appState.vehicles = dashboardData.vehicles || [];
-
-            // Обновляем статистику
-            updateStatistics(dashboardData);
-
-            // Обновляем таблицу
-            updateVehiclesTable();
-
-            // Обновляем время
-            updateLastUpdateTime();
-
-            // Запускаем автообновление
-            startAutoRefresh();
-        }
-
-        function updateStatistics(data) {
-            document.getElementById('totalVehicles').textContent = data.total_vehicles;
-            document.getElementById('onlineVehicles').textContent = data.online_vehicles;
-            document.getElementById('noConnectionVehicles').textContent = data.no_connection_vehicles;
-            document.getElementById('longOfflineVehicles').textContent = data.long_offline_vehicles;
-
-            if (data.schema_name) {
-                document.getElementById('schemaName').textContent = data.schema_name;
-            }
-        }
-
-        function updateVehiclesTable() {
-            const tbody = document.getElementById('vehiclesTable');
-            const vehiclesCount = document.getElementById('vehiclesCount');
-
-            if (appState.vehicles.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="fas fa-truck fa-2x mb-2"></i>
-                                <p>Нет данных о транспортных средствах</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                vehiclesCount.textContent = '0';
-                return;
-            }
-
-            // Применяем фильтр
-            applyFilter();
-
-            // Создаем строки таблицы
-            let html = '';
-            appState.filteredVehicles.forEach(vehicle => {
-                html += createVehicleRow(vehicle);
             });
 
-            tbody.innerHTML = html;
-            vehiclesCount.textContent = appState.filteredVehicles.length;
+            if (!response.ok) throw new Error(`HTTP ошибка ${response.status}`);
 
-            console.log('✅ Таблица обновлена:', appState.filteredVehicles.length, 'ТС');
+            const data = await response.json();
+            if (data.success) {
+                this.processVehiclesData(data.data.vehicles);
+                this.updateStats(data.data);
+                this.filterByStatus('all');
+            } else {
+                throw new Error(data.error || 'Ошибка загрузки данных');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных:', error);
+        } finally {
+            this.hideLoading();
         }
+    }
 
-        function createVehicleRow(vehicle) {
-            const speed = Math.round(vehicle.speed || 0);
+    processVehiclesData(vehicles) {
+        this.vehicles = vehicles.map(vehicle => {
+            // Исправляем отрицательную скорость
+            let speed = vehicle.speed || 0;
+            if (speed < 0) speed = 0;
 
-            // Определяем статус и классы
-            let statusBadge, connectionClass;
-            switch (vehicle.connection_status) {
-                case 'online':
-                    connectionClass = 'connection-online';
-                    statusBadge = speed > 0 ?
-                        '<span class="badge bg-success status-badge">В движении</span>' :
-                        '<span class="badge bg-secondary status-badge">На стоянке</span>';
-                    break;
-                case 'no_connection':
-                    connectionClass = 'connection-warning';
-                    statusBadge = '<span class="badge bg-warning status-badge">Без связи</span>';
-                    break;
-                case 'long_offline':
-                    connectionClass = 'connection-offline';
-                    statusBadge = '<span class="badge bg-danger status-badge">Длительный оффлайн</span>';
-                    break;
-                default:
-                    connectionClass = 'connection-offline';
-                    statusBadge = '<span class="badge bg-light text-dark status-badge">Нет данных</span>';
+            // Определяем статус на основе времени последнего обновления
+            let status = vehicle.status;
+            const lastUpdate = vehicle.last_update;
+
+            if (lastUpdate) {
+                const updateTime = new Date(lastUpdate);
+                const now = new Date();
+                const diffHours = (now - updateTime) / (1000 * 60 * 60);
+
+                // Если обновление было больше 24 часов назад - помечаем как неактивное
+                if (diffHours > 24) {
+                    status = 'inactive';
+                }
             }
 
-            // Скорость
-            const speedDisplay = speed > 0 ?
-                `<span class="speed-moving">${speed} км/ч</span>` :
-                '<span class="speed-stopped">0 км/ч</span>';
+            return {
+                ...vehicle,
+                speed: speed,
+                status: status
+            };
+        });
+    }
 
-            // Топливо
-            const fuelDisplay = vehicle.fuel_level !== null && vehicle.fuel_level !== undefined ?
-                (vehicle.fuel_level < 10 ?
-                    `<span class="fuel-low">${vehicle.fuel_level} л</span>` :
-                    `<span class="fuel-normal">${vehicle.fuel_level} л</span>`) :
-                '<span class="fuel-na">—</span>';
+    updateStats(data) {
+        const total = data.total || 0;
 
-            // Адрес
-            const address = vehicle.address || '—';
+        // Пересчитываем статистику с учетом нового определения статусов
+        let online = 0, parking = 0, inactive = 0;
 
-            // Госномер
-            const licensePlate = vehicle.license_plate && vehicle.license_plate !== "—" ?
-                `<span class="badge bg-dark license-plate">${escapeHtml(vehicle.license_plate)}</span>` :
-                '<span class="text-muted">—</span>';
+        this.vehicles.forEach(vehicle => {
+            switch(vehicle.status) {
+                case 'online':
+                    online++;
+                    break;
+                case 'warning':
+                case 'parking':
+                    parking++;
+                    break;
+                case 'inactive':
+                    inactive++;
+                    break;
+            }
+        });
 
-            return `
-                <tr class="${connectionClass}" data-vehicle-id="${vehicle.id}">
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-truck me-2 text-muted"></i>
-                            <div>
-                                <strong>${escapeHtml(vehicle.name)}</strong>
-                                ${vehicle.serial ? `<br><small class="text-muted">Серийный: ${escapeHtml(vehicle.serial)}</small>` : ''}
-                            </div>
-                        </div>
-                    </td>
-                    <td>${licensePlate}</td>
-                    <td>${statusBadge}</td>
-                    <td>${speedDisplay}</td>
-                    <td>${fuelDisplay}</td>
-                    <td>
-                        <span class="location-truncate" title="${escapeHtml(address)}">
-                            ${escapeHtml(address)}
-                        </span>
-                    </td>
-                    <td>
-                        <small class="text-muted">
-                            ${escapeHtml(vehicle.last_update)}
-                        </small>
+        document.getElementById('totalVehicles').textContent = total;
+        document.getElementById('onlineVehicles').textContent = online;
+        document.getElementById('parkingVehicles').textContent = parking;
+        document.getElementById('inactiveVehicles').textContent = inactive;
+
+        // Обновляем счетчики фильтров
+        document.getElementById('countAll').textContent = total;
+        document.getElementById('countOnline').textContent = online;
+        document.getElementById('countParking').textContent = parking;
+        document.getElementById('countInactive').textContent = inactive;
+    }
+
+    filterByStatus(status) {
+        console.log(`Фильтр по статусу: ${status}`);
+        this.currentFilter = status;
+        this.currentPage = 1;
+
+        // Фильтруем ТС
+        if (status === 'all') {
+            this.filteredVehicles = [...this.vehicles];
+        } else {
+            this.filteredVehicles = this.vehicles.filter(vehicle => {
+                if (status === 'parking') {
+                    return vehicle.status === 'warning' || vehicle.status === 'parking';
+                }
+                return vehicle.status === status;
+            });
+        }
+
+        console.log(`Отфильтровано ТС: ${this.filteredVehicles.length}`);
+
+        // Обновляем активную кнопку
+        this.updateActiveButton(status);
+
+        // Рендерим таблицу
+        this.renderTable();
+    }
+
+    updateActiveButton(status) {
+        // Сбрасываем все кнопки
+        const buttons = {
+            'all': document.getElementById('btnAll'),
+            'online': document.getElementById('btnOnline'),
+            'parking': document.getElementById('btnParking'),
+            'inactive': document.getElementById('btnInactive')
+        };
+
+        // Убираем активный класс у всех
+        Object.values(buttons).forEach(btn => {
+            if (btn) {
+                btn.classList.remove('active', 'btn-gold');
+                // Возвращаем оригинальные цвета
+                if (btn.id === 'btnOnline') btn.classList.add('btn-success');
+                if (btn.id === 'btnParking') btn.classList.add('btn-warning');
+                if (btn.id === 'btnInactive') btn.classList.add('btn-danger');
+                if (btn.id === 'btnAll') btn.classList.add('btn-dark-custom');
+            }
+        });
+
+        // Делаем активной выбранную кнопку
+        const activeBtn = buttons[status];
+        if (activeBtn) {
+            activeBtn.classList.add('active', 'btn-gold');
+            activeBtn.classList.remove('btn-success', 'btn-warning', 'btn-danger', 'btn-dark-custom');
+        }
+    }
+
+    renderTable() {
+        const container = document.getElementById('vehiclesTableBody');
+        if (!container) return;
+
+        if (this.filteredVehicles.length === 0) {
+            container.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <i class="fas fa-car fa-2x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">Нет транспортных средств</p>
                     </td>
                 </tr>
             `;
+            this.updateTableInfo();
+            return;
         }
 
-        function applyFilter() {
-            const filter = appState.currentFilter;
+        // Применяем пагинацию
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        const pageVehicles = this.filteredVehicles.slice(startIndex, endIndex);
 
-            switch(filter) {
-                case 'online':
-                    appState.filteredVehicles = appState.vehicles.filter(v => v.connection_status === 'online');
-                    break;
-                case 'no_connection':
-                    appState.filteredVehicles = appState.vehicles.filter(v => v.connection_status === 'no_connection');
-                    break;
-                case 'long_offline':
-                    appState.filteredVehicles = appState.vehicles.filter(v => v.connection_status === 'long_offline');
-                    break;
-                case 'moving':
-                    appState.filteredVehicles = appState.vehicles.filter(v => v.connection_status === 'online' && (v.speed || 0) > 0);
-                    break;
-                default:
-                    appState.filteredVehicles = appState.vehicles;
-            }
+        let html = '';
+        pageVehicles.forEach(vehicle => {
+            const statusBadge = this.getStatusBadge(vehicle.status, vehicle.last_update);
+            const activityBadge = this.getActivityBadge(vehicle.last_update);
+            const speed = vehicle.speed ? Math.round(vehicle.speed) : 0;
+            const fuel = vehicle.fuel_volume ? Math.round(vehicle.fuel_volume) + ' л' : '—';
 
-            // Применяем поиск
-            if (appState.searchTerm) {
-                const searchLower = appState.searchTerm.toLowerCase();
-                appState.filteredVehicles = appState.filteredVehicles.filter(vehicle =>
-                    vehicle.name.toLowerCase().includes(searchLower) ||
-                    (vehicle.license_plate && vehicle.license_plate.toLowerCase().includes(searchLower)) ||
-                    (vehicle.serial && vehicle.serial.toString().toLowerCase().includes(searchLower))
-                );
-            }
-        }
-
-        // Функции автообновления
-        function startAutoRefresh() {
-            if (appState.autoRefreshTimer) {
-                clearTimeout(appState.autoRefreshTimer);
-            }
-
-            appState.autoRefreshTimer = setTimeout(() => {
-                if (appState.autoRefreshEnabled) {
-                    console.log('🔄 Автоматическое обновление...');
-                    loadData();
-                }
-            }, CONFIG.autoRefreshInterval);
-
-            // Обновляем время следующего обновления
-            const nextUpdate = new Date(Date.now() + CONFIG.autoRefreshInterval);
-            document.getElementById('nextUpdateTime').textContent = nextUpdate.toLocaleTimeString('ru-RU');
-        }
-
-        // Вспомогательные функции
-        function showLoading(show) {
-            const spinner = document.getElementById('loadingSpinner');
-            spinner.style.display = show ? 'inline-block' : 'none';
-        }
-
-        function updateLastUpdateTime() {
-            document.getElementById('lastUpdate').textContent =
-                `Обновлено: ${new Date().toLocaleTimeString('ru-RU')}`;
-        }
-
-        function updateCurrentTime() {
-            document.getElementById('currentTime').textContent =
-                new Date().toLocaleDateString('ru-RU') + ' ' + new Date().toLocaleTimeString('ru-RU');
-        }
-
-        function updateConnectionStatus(connected) {
-            const statusElement = document.getElementById('connectionStatus');
-            if (connected) {
-                statusElement.innerHTML = '● Онлайн';
-                statusElement.className = 'text-success';
-            } else {
-                statusElement.innerHTML = '● Оффлайн';
-                statusElement.className = 'text-danger';
-            }
-        }
-
-        function showError(message) {
-            // Можно добавить уведомление об ошибке
-            console.error('❌', message);
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function setupEventListeners() {
-            // Фильтры
-            document.querySelectorAll('[data-filter]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const filter = this.dataset.filter;
-
-                    // Обновляем активную кнопку
-                    document.querySelectorAll('[data-filter]').forEach(b => {
-                        b.classList.remove('active', 'btn-primary');
-                        b.classList.add('btn-outline-primary');
-                    });
-                    this.classList.remove('btn-outline-primary');
-                    this.classList.add('active', 'btn-primary');
-
-                    // Применяем фильтр
-                    appState.currentFilter = filter;
-                    updateVehiclesTable();
-                });
-            });
-
-            // Поиск
-            document.getElementById('searchVehicles').addEventListener('input', function(e) {
-                appState.searchTerm = e.target.value.toLowerCase();
-                updateVehiclesTable();
-            });
-        }
-
-        function clearSearch() {
-            document.getElementById('searchVehicles').value = '';
-            appState.searchTerm = '';
-            updateVehiclesTable();
-        }
-
-        // Инициализация
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Дашборд инициализирован');
-
-            setupEventListeners();
-
-            // Первая загрузка данных
-            loadData();
-
-            // Обновляем время каждую секунду
-            setInterval(updateCurrentTime, 1000);
-
-            // Обновляем при фокусе на вкладке
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden && appState.autoRefreshEnabled) {
-                    console.log('🔄 Вкладка активна, обновляем данные...');
-                    loadData();
-                }
-            });
+            html += `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-truck me-2 text-gold"></i>
+                            <div>
+                                <div class="fw-bold">${vehicle.name}</div>
+                                <small class="text-muted">${vehicle.serial || '—'}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-dark border border-gold">${vehicle.license_plate || '—'}</span>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-tachometer-alt me-2 ${speed > 0 ? 'text-success' : 'text-muted'}"></i>
+                            ${speed} км/ч
+                        </div>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-gas-pump me-2 text-gold"></i>
+                            ${fuel}
+                        </div>
+                    </td>
+                    <td>
+                        <small class="d-block" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                               title="${vehicle.address || '—'}">
+                            ${vehicle.address || '—'}
+                        </small>
+                    </td>
+                    <td>
+                        <small>${vehicle.last_update ? this.formatDateTime(vehicle.last_update) : '—'}</small>
+                    </td>
+                    <td>${activityBadge}</td>
+                </tr>
+            `;
         });
-    </script>
-</body>
-</html>
+
+        container.innerHTML = html;
+        this.updateTableInfo();
+    }
+
+    getStatusBadge(status, lastUpdate) {
+        let badgeClass = 'bg-secondary';
+        let badgeText = 'Неизвестно';
+
+        // Переопределяем статус если обновление было давно
+        if (lastUpdate) {
+            const updateTime = new Date(lastUpdate);
+            const now = new Date();
+            const diffHours = (now - updateTime) / (1000 * 60 * 60);
+
+            if (diffHours > 24) {
+                badgeClass = 'bg-danger';
+                badgeText = 'Неактивно';
+                return `<span class="badge ${badgeClass}">${badgeText}</span>`;
+            }
+        }
+
+        switch(status) {
+            case 'online':
+                badgeClass = 'bg-success';
+                badgeText = 'В движении';
+                break;
+            case 'warning':
+            case 'parking':
+                badgeClass = 'bg-warning text-dark';
+                badgeText = 'На стоянке';
+                break;
+            case 'inactive':
+                badgeClass = 'bg-danger';
+                badgeText = 'Неактивно';
+                break;
+        }
+
+        return `<span class="badge ${badgeClass}">${badgeText}</span>`;
+    }
+
+    getActivityBadge(lastUpdate) {
+        if (!lastUpdate) {
+            return '<span class="badge bg-secondary">Нет данных</span>';
+        }
+
+        const updateTime = new Date(lastUpdate);
+        const now = new Date();
+        const diffHours = (now - updateTime) / (1000 * 60 * 60);
+
+        let badgeClass, badgeText;
+
+        if (diffHours > 24) {
+            badgeClass = 'bg-danger';
+            badgeText = '>24 ч';
+        } else if (diffHours > 1) {
+            badgeClass = 'bg-warning text-dark';
+            badgeText = Math.round(diffHours) + ' ч';
+        } else {
+            badgeClass = 'bg-success';
+            badgeText = '<1 ч';
+        }
+
+        return `<span class="badge ${badgeClass}">${badgeText}</span>`;
+    }
+
+    updateTableInfo() {
+        const totalItems = this.filteredVehicles.length;
+        const totalPages = Math.ceil(totalItems / this.pageSize);
+
+        document.getElementById('tableCount').textContent = totalItems;
+        document.getElementById('pageInfo').textContent = `Стр. ${this.currentPage} из ${totalPages}`;
+
+        document.getElementById('prevBtn').disabled = this.currentPage <= 1;
+        document.getElementById('nextBtn').disabled = this.currentPage >= totalPages;
+    }
+
+    prevPage() {
+        if (this.currentPage > 1) {
+            this.currentPage--;
+            this.renderTable();
+        }
+    }
+
+    nextPage() {
+        const totalPages = Math.ceil(this.filteredVehicles.length / this.pageSize);
+        if (this.currentPage < totalPages) {
+            this.currentPage++;
+            this.renderTable();
+        }
+    }
+
+    formatDateTime(dateTimeStr) {
+        if (!dateTimeStr) return '—';
+        try {
+            const date = new Date(dateTimeStr);
+            return date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU');
+        } catch {
+            return dateTimeStr;
+        }
+    }
+
+    refreshData() {
+        console.log('🔄 Обновление данных дашборда');
+        this.loadData();
+    }
+
+    startAutoRefresh() {
+        if (this.timer) clearInterval(this.timer);
+        this.timer = setInterval(() => this.refreshData(), this.refreshInterval);
+        console.log(`🔄 Автообновление установлено: ${this.refreshInterval/1000} сек`);
+    }
+
+    setupEventListeners() {
+        // Ничего не делаем - поиск убран
+    }
+
+    showLoading(title, message) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            document.getElementById('loadingTitle').textContent = title;
+            document.getElementById('loadingMessage').textContent = message;
+            overlay.style.display = 'flex';
+        }
+    }
+
+    hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+}
+
+const dashboard = new Dashboard();
+document.addEventListener('DOMContentLoaded', () => dashboard.init());
+</script>
+{% endblock %}

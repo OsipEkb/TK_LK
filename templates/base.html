@@ -7,29 +7,710 @@
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- ЕДИНЫЙ СТИЛЬ BLACK & GOLD -->
     <style>
-        .stat-card {
-            transition: transform 0.2s;
+        /* ============================================
+           ЕДИНАЯ ТЕМА BLACK & GOLD
+           ============================================ */
+        :root {
+            --primary-black: #000000;
+            --primary-gold: #FFD700;
+            --gold-light: #FFF8DC;
+            --gold-dark: #B8860B;
+            --bg-dark: #0A0A0A;
+            --bg-card: #1A1A1A;
+            --text-light: #FFFFFF;
+            --text-gray: #CCCCCC;
+            --border-color: #333333;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
         }
-        .stat-card:hover {
+
+        /* Общие стили */
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1 0 auto;
+            background-color: var(--bg-dark);
+        }
+
+        /* Навигация */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-black) 0%, #1A1A1A 100%) !important;
+            border-bottom: 2px solid var(--primary-gold) !important;
+            padding: 0.8rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-gold) !important;
+            font-size: 1.4rem;
+        }
+
+        .navbar-brand i {
+            font-size: 1.6rem;
+        }
+
+        .nav-link {
+            color: var(--text-gray) !important;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            padding: 0.6rem 1rem !important;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 215, 0, 0.15) !important;
+            color: var(--primary-gold) !important;
             transform: translateY(-2px);
         }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), transparent) !important;
+            color: var(--primary-gold) !important;
+            border-left: 3px solid var(--primary-gold);
+        }
+
+        .navbar-toggler {
+            border: 2px solid var(--primary-gold) !important;
+            color: var(--primary-gold) !important;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 215, 0, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+        }
+
+        /* Dropdown меню */
+        .dropdown-menu {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--primary-gold) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .dropdown-item {
+            color: var(--text-light) !important;
+            padding: 0.75rem 1.5rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), transparent) !important;
+            color: var(--primary-gold) !important;
+            padding-left: 2rem !important;
+        }
+
+        .dropdown-divider {
+            border-color: var(--border-color) !important;
+        }
+
+        /* Футер */
+        footer {
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--primary-black) 0%, #1A1A1A 100%);
+            border-top: 2px solid var(--primary-gold);
+            padding: 1.5rem 0 !important;
+        }
+
+        footer h6 {
+            color: var(--primary-gold);
+            font-weight: 600;
+        }
+
+        footer p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+        }
+
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-card);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--primary-gold), var(--gold-dark));
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, var(--gold-dark), var(--primary-gold));
+        }
+
+        /* Кнопки */
+        .btn-gold {
+            background: linear-gradient(135deg, var(--primary-gold), var(--gold-dark)) !important;
+            color: var(--primary-black) !important;
+            border: none !important;
+            padding: 0.75rem 1.75rem !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.2) !important;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-3px) !important;
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3) !important;
+            color: var(--primary-black) !important;
+        }
+
+        .btn-gold:active {
+            transform: translateY(-1px) !important;
+        }
+
+        .btn-dark-custom {
+            background: var(--primary-black) !important;
+            color: var(--primary-gold) !important;
+            border: 2px solid var(--primary-gold) !important;
+            padding: 0.75rem 1.75rem !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .btn-dark-custom:hover {
+            background: var(--primary-gold) !important;
+            color: var(--primary-black) !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 8px 25px rgba(255, 215, 0, 0.2) !important;
+        }
+
+        /* Badges */
+        .badge.bg-gold {
+            background: linear-gradient(135deg, var(--primary-gold), var(--gold-dark)) !important;
+            color: var(--primary-black) !important;
+            font-weight: 600 !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 20px !important;
+        }
+
+        /* Карточки */
+        .card {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 15px !important;
+            color: var(--text-light) !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .card:hover {
+            transform: translateY(-5px) !important;
+            border-color: var(--primary-gold) !important;
+            box-shadow: 0 15px 35px rgba(255, 215, 0, 0.1) !important;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-black), #1A1A1A) !important;
+            border-bottom: 2px solid var(--primary-gold) !important;
+            color: var(--primary-gold) !important;
+            font-weight: 600 !important;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.25rem 1.5rem !important;
+        }
+
+        .card-body {
+            padding: 1.5rem !important;
+        }
+
+        /* Таблицы */
+        .table {
+            color: var(--text-light) !important;
+            --bs-table-bg: transparent !important;
+        }
+
+        .table-dark {
+            --bs-table-bg: var(--bg-card) !important;
+            --bs-table-border-color: var(--border-color) !important;
+        }
+
+        .table-hover tbody tr {
+            transition: all 0.2s ease;
+        }
+
         .table-hover tbody tr:hover {
-            background-color: rgba(0, 0, 0, 0.075);
+            background: rgba(255, 215, 0, 0.05) !important;
+        }
+
+        /* Формы */
+        .form-control, .form-select {
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-light) !important;
+            border-radius: 10px !important;
+            padding: 0.75rem 1rem !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--bg-card) !important;
+            border-color: var(--primary-gold) !important;
+            color: var(--text-light) !important;
+            box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25) !important;
+        }
+
+        .form-label {
+            color: var(--text-gray) !important;
+            font-weight: 500 !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        /* Алерты */
+        .alert {
+            border-radius: 12px !important;
+            border: none !important;
+            padding: 1.25rem 1.5rem !important;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+        }
+
+        .alert-success {
+            background: linear-gradient(135deg, var(--success), #20c997) !important;
+            color: white !important;
+            border-left: 4px solid var(--success) !important;
+        }
+
+        .alert-danger {
+            background: linear-gradient(135deg, var(--danger), #e35d6a) !important;
+            color: white !important;
+            border-left: 4px solid var(--danger) !important;
+        }
+
+        .alert-warning {
+            background: linear-gradient(135deg, var(--warning), #fd7e14) !important;
+            color: white !important;
+            border-left: 4px solid var(--warning) !important;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, var(--info), #0dcaf0) !important;
+            color: white !important;
+            border-left: 4px solid var(--info) !important;
+        }
+
+        .btn-close-white {
+            filter: brightness(0) invert(1) !important;
+        }
+
+        /* Модальные окна */
+        .modal-content {
+            background: var(--bg-card) !important;
+            color: var(--text-light) !important;
+            border: 2px solid var(--primary-gold) !important;
+            border-radius: 15px !important;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-black), #1A1A1A) !important;
+            border-bottom: 2px solid var(--primary-gold) !important;
+            border-radius: 13px 13px 0 0 !important;
+            color: var(--primary-gold) !important;
+        }
+
+        .modal-footer {
+            border-top: 2px solid var(--primary-gold) !important;
+            border-radius: 0 0 13px 13px !important;
+        }
+
+        /* Прогресс бары */
+        .progress {
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 10px !important;
+            height: 10px !important;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--primary-gold), var(--gold-dark)) !important;
+            border-radius: 10px !important;
+        }
+
+        /* Заголовки */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-light) !important;
+        }
+
+        h1.text-gold, h2.text-gold, h3.text-gold, h4.text-gold, h5.text-gold, h6.text-gold {
+            color: var(--primary-gold) !important;
+        }
+
+        /* Текст */
+        .text-gold {
+            color: var(--primary-gold) !important;
+        }
+
+        .text-muted {
+            color: var(--text-gray) !important;
+        }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .animate-slideInRight {
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Статусы ТС */
+        .status-online {
+            color: var(--success) !important;
+            background: rgba(40, 167, 69, 0.1) !important;
+            padding: 0.25rem 0.75rem !important;
+            border-radius: 20px !important;
+            font-weight: 600 !important;
+        }
+
+        .status-warning {
+            color: var(--warning) !important;
+            background: rgba(255, 193, 7, 0.1) !important;
+            padding: 0.25rem 0.75rem !important;
+            border-radius: 20px !important;
+            font-weight: 600 !important;
+        }
+
+        .status-offline {
+            color: var(--danger) !important;
+            background: rgba(220, 53, 69, 0.1) !important;
+            padding: 0.25rem 0.75rem !important;
+            border-radius: 20px !important;
+            font-weight: 600 !important;
+        }
+
+        /* ============================================
+           СПЕЦИАЛЬНЫЕ СТИЛИ ДЛЯ СТРАНИЦ
+           ============================================ */
+
+        /* Статистические карточки */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 1.75rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary-gold);
+            box-shadow: 0 20px 40px rgba(255, 215, 0, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-gold), var(--gold-dark));
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-black), var(--bg-card));
+            border: 2px solid var(--primary-gold);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+            color: var(--primary-gold);
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-gold);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        /* Панели управления */
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .control-panel:hover {
+            border-color: var(--primary-gold);
+            box-shadow: 0 10px 25px rgba(255, 215, 0, 0.1);
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--primary-black), #1A1A1A);
+            padding: 1.25rem 1.75rem;
+            border-bottom: 2px solid var(--primary-gold);
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--primary-gold);
+        }
+
+        .panel-body {
+            padding: 1.75rem;
+        }
+
+        /* Сетка статистики */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Вкладки */
+        .tabs-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .tabs-header {
+            display: flex;
+            background: linear-gradient(135deg, var(--primary-black), #1A1A1A);
+            border-bottom: 2px solid var(--primary-gold);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 1.25rem 2rem;
+            background: transparent;
+            border: none;
+            color: var(--text-gray);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            position: relative;
+            font-size: 1rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-light);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-gold);
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-gold);
+        }
+
+        .tab-content {
+            padding: 2rem;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Диаграммы */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 1.5rem;
+            height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Таблица данных */
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, var(--primary-black), var(--bg-card));
+            color: var(--primary-gold);
+            padding: 1.25rem;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--primary-gold);
+        }
+
+        .data-table td {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-light);
+            transition: all 0.2s ease;
+        }
+
+        .data-table tbody tr {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        /* Заголовок страницы */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-black) 0%, #1A1A1A 100%);
+            border-bottom: 3px solid var(--primary-gold);
+            padding: 2rem 0;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+            z-index: 0;
+        }
+
+        .page-header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-btn {
+                padding: 1rem;
+                flex: 1;
+                min-width: 120px;
+                justify-content: center;
+            }
+
+            .container-fluid {
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+            }
+
+            .page-header {
+                padding: 1.5rem 0;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .chart-container {
+                height: 300px;
+                padding: 1rem;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .stat-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.25rem;
+            }
         }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-light">
+<body class="{% block body_class %}{% endblock %}">
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
             <a class="navbar-brand" href="/dashboard/">
                 <i class="fas fa-satellite-dish me-2"></i>Autograph Monitor
             </a>
@@ -41,49 +722,52 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/">
+                        <a class="nav-link {% if 'dashboard' in request.path %}active{% endif %}"
+                           href="/dashboard/">
                             <i class="fas fa-tachometer-alt me-1"></i>Дашборд
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/vehicles/">
+                        <a class="nav-link {% if 'vehicles' in request.path %}active{% endif %}"
+                           href="/vehicles/">
                             <i class="fas fa-truck me-1"></i>Транспорт
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/reports/">
+                        <a class="nav-link {% if 'reports' in request.path %}active{% endif %}" href="#">
                             <i class="fas fa-chart-bar me-1"></i>Отчеты
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/retransmission/">
+                        <a class="nav-link {% if 'retransmission' in request.path %}active{% endif %}" href="#">
                             <i class="fas fa-broadcast-tower me-1"></i>Ретрансляция
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/billing/">
+                        <a class="nav-link {% if 'billing' in request.path %}active{% endif %}" href="#">
                             <i class="fas fa-credit-card me-1"></i>Биллинг
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard/support/">
+                        <a class="nav-link {% if 'support' in request.path %}active{% endif %}" href="#">
                             <i class="fas fa-headset me-1"></i>Поддержка
                         </a>
                     </li>
                 </ul>
 
                 <ul class="navbar-nav">
-                    {% if user.is_authenticated %}
+                    {% if request.session.autograph_token %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user me-1"></i>{{ user.username }}
+                                <i class="fas fa-user me-1"></i>
+                                {{ request.session.autograph_username|default:"Гость" }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Настройки</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Профиль</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form method="post" action="/auth/logout/" class="d-inline">
+                                    <form method="post" action="{% url 'users:logout' %}" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="dropdown-item">
                                             <i class="fas fa-sign-out-alt me-2"></i>Выйти
@@ -94,7 +778,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/auth/login/">
+                            <a class="nav-link" href="{% url 'users:login' %}">
                                 <i class="fas fa-sign-in-alt me-1"></i>Войти
                             </a>
                         </li>
@@ -108,9 +792,10 @@
     <main class="container-fluid py-4">
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show animate-fadeIn" role="alert">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
                 </div>
             {% endfor %}
         {% endif %}
@@ -120,8 +805,8 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-dark text-light mt-5 py-4">
-        <div class="container">
+    <footer class="mt-5 py-3">
+        <div class="container-fluid">
             <div class="row">
                 <div class="col-md-6">
                     <h6><i class="fas fa-satellite-dish me-2"></i>Autograph Monitor</h6>
@@ -134,11 +819,6 @@
                         <i class="fas fa-calendar me-1"></i>
                         {{ current_time|date:"d.m.Y" }}
                     </p>
-                </div>
-            </div>
-            <div class="row mt-2">
-                <div class="col-12 text-center">
-                    <small class="text-muted">Статус: <span class="text-success">●</span> Работает</small>
                 </div>
             </div>
         </div>
@@ -165,12 +845,59 @@
         }
     }
 
+    // Глобальная функция для отображения уведомлений
+    window.showToast = function(message, type = 'info', duration = 5000) {
+        let toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.id = 'toastContainer';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toastId = 'toast-' + Date.now();
+        const icon = type === 'success' ? 'check-circle' :
+                     type === 'error' ? 'exclamation-circle' :
+                     type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+
+        const toast = document.createElement('div');
+        toast.className = `toast show alert alert-${type}`;
+        toast.id = toastId;
+        toast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas ${icon} me-3"></i>
+                <div class="flex-grow-1">${message}</div>
+                <button class="btn-close btn-close-white ms-3" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            const toastElement = document.getElementById(toastId);
+            if (toastElement) {
+                toastElement.classList.remove('show');
+                setTimeout(() => toastElement.remove(), 300);
+            }
+        }, duration);
+    };
+
+    // Инициализация при загрузке
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Autograph Monitor загружен');
+
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
+
+        // Проверяем авторизацию
+        const token = '{{ request.session.autograph_token|default:"" }}';
+        if (!token) {
+            console.warn('⚠️ Требуется авторизация');
+        }
     });
     </script>
 
-    {% block scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

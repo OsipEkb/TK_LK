@@ -1,441 +1,355 @@
-# dashboard/services.py
 import requests
 import logging
-import re
-from django.conf import settings
+import warnings
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
-from django.utils import timezone
-import dateutil.parser
 
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 logger = logging.getLogger(__name__)
 
 
-class AutoGraphDashboardService:
+class AutoGraphService:
     """Сервис для работы с AutoGRAPH API"""
 
-    def __init__(self):
-        self.base_url = settings.AUTOGRAPH_API_BASE_URL
+    BASE_URL = "https://web.tk-ekat.ru/ServiceJSON"
+
+    def __init__(self, token=None):
+        self.token = token
         self.session = requests.Session()
-        self.token = None
+        self.session.headers.update({
+            'Accept': 'application/json',
+            'User-Agent': 'MonitoringApp/1.0'
+        })
+        self.session.verify = False
 
-    def login(self, username, password):
-        """Аутентификация в AutoGRAPH"""
-        try:
-            url = f"{self.base_url}/ServiceJSON/Login"
-            params = {
-                'UserName': username,
-                'Password': password,
-                'UTCOffset': 180  # Moscow UTC+3
-            }
-
-            logger.info(f"🔄 Logging in to AutoGRAPH: {username}")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                self.token = response.text.strip()
-                if self.token and len(self.token) > 10:
-                    logger.info(f"✅ Login successful, token: {self.token[:20]}...")
-                    return True
-                else:
-                    logger.error("❌ Invalid credentials - empty token")
-                    return False
-            elif response.status_code == 401:
-                logger.error("❌ Authentication failed - 401 Unauthorized")
-                return False
-            else:
-                logger.error(f"❌ Login failed with status: {response.status_code}")
-                return False
-
-        except Exception as e:
-            logger.error(f"❌ Connection error: {e}")
-            return False
-
-    def get_schemas(self):
-        """Получение списка схем"""
-        if not self.token:
-            logger.error("No token available")
+    def get_devices(self, schema_id):
+        """Получить все устройства схемы"""
+        if not self.token or not schema_id:
             return []
 
         try:
-            url = f"{self.base_url}/ServiceJSON/EnumSchemas"
-            params = {'session': self.token}
-
-            logger.info("🔄 Fetching schemas...")
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                schemas = response.json()
-                logger.info(f"✅ Got {len(schemas)} schemas")
-                return schemas
-            else:
-                logger.error(f"❌ Failed to get schemas: {response.status_code}")
-                return []
-
-        except Exception as e:
-            logger.error(f"❌ Error getting schemas: {e}")
-            return []
-
-    def get_vehicles(self, schema_id):
-        """Получение списка ТС в схеме"""
-        if not self.token:
-            return {}
-
-        try:
-            url = f"{self.base_url}/ServiceJSON/EnumDevices"
+            url = f"{self.BASE_URL}/EnumDevices"
             params = {
                 'session': self.token,
                 'schemaID': schema_id
             }
 
-            logger.info(f"🔄 Fetching vehicles for schema: {schema_id}")
             response = self.session.get(url, params=params, timeout=30)
 
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got vehicles data, items: {len(data.get('Items', []))}")
-                return data
-            else:
-                logger.error(f"❌ Failed to get vehicles: {response.status_code}")
-                return {}
+            if response.status_code != 200:
+                logger.error(f"Ошибка получения устройств: HTTP {response.status_code}")
+                return []
+
+            devices_data = response.json()
+
+            if not devices_data or 'Items' not in devices_data:
+                return []
+
+            devices = []
+            for item in devices_data['Items']:
+                try:
+                    device_id = item.get('ID', '')
+                    name = item.get('Name', f'ТС {device_id[:8]}')
+
+                    # Ищем госномер
+                    reg_num = "—"
+                    properties = item.get('Properties', [])
+                    for prop in properties:
+                        if prop.get('Name') == 'VehicleRegNumber' and prop.get('Value'):
+                            reg_num = prop['Value']
+                            break
+
+                    devices.append({
+                        'id': device_id,
+                        'name': name,
+                        'reg_num': reg_num,
+                        'serial': item.get('Serial', ''),
+                    })
+
+                except Exception as e:
+                    logger.error(f"Ошибка обработки устройства: {e}")
+                    continue
+
+            return devices
 
         except Exception as e:
-            logger.error(f"❌ Error getting vehicles: {e}")
-            return {}
+            logger.error(f"Ошибка получения устройств: {e}")
+            return []
 
-    def get_online_info_all(self, schema_id):
-        """Получение информации о последнем местоположении всех устройств"""
-        if not self.token:
-            logger.error("No token available for online info")
+    def get_online_data(self, schema_id, device_ids):
+        """Получить онлайн данные для устройств"""
+        if not self.token or not schema_id or not device_ids:
             return {}
 
         try:
-            url = f"{self.base_url}/ServiceJSON/GetOnlineInfoAll"
+            if isinstance(device_ids, list):
+                device_ids = ','.join(device_ids)
+
+            url = f"{self.BASE_URL}/GetOnlineInfo"
             params = {
                 'session': self.token,
                 'schemaID': schema_id,
-                'finalParams': 'Speed,FuelLevel,EngineHours,Latitude,Longitude,Address,TankMainFuelLevel,FL1,FL2',
+                'IDs': device_ids,
+                'finalParams': '*',  # Запрашиваем ВСЕ финальные параметры для получения топлива
                 'mchp': '0'
             }
 
-            logger.info(f"🔄 Getting online info for all devices in schema: {schema_id}")
             response = self.session.get(url, params=params, timeout=30)
 
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ Got online info for {len(data)} devices")
-                return data
-            else:
-                logger.error(f"❌ Failed to get online info: {response.status_code}")
+            if response.status_code != 200:
+                logger.error(f"Ошибка онлайн данных: HTTP {response.status_code}")
                 return {}
 
+            result = response.json()
+            return result if isinstance(result, dict) else {}
+
         except Exception as e:
-            logger.error(f"❌ Error getting online info: {e}")
+            logger.error(f"Ошибка получения онлайн данных: {e}")
             return {}
 
-    def parse_timestamp(self, timestamp):
-        """Универсальный парсер временных меток"""
-        if not timestamp:
-            return None
+    # ==================== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ТОПЛИВОМ ====================
+
+    def get_device_parameters(self, schema_id, device_id):
+        """Получить параметры устройства"""
+        if not self.token or not schema_id or not device_id:
+            return {}
 
         try:
-            if isinstance(timestamp, (int, float)):
-                # Unix timestamp
-                if timestamp > 1e10:  # milliseconds
-                    dt = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc)
-                else:  # seconds
-                    dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-            elif isinstance(timestamp, str):
-                # String timestamp
-                if 'T' in timestamp:
-                    # ISO format
-                    dt = dateutil.parser.isoparse(timestamp)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    return dt
-                else:
-                    # Try other formats
-                    for fmt in ['%Y%m%d-%H%M%S', '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S']:
-                        try:
-                            dt = datetime.strptime(timestamp, fmt)
-                            return timezone.make_aware(dt)
-                        except ValueError:
-                            continue
-                    return None
-            elif isinstance(timestamp, datetime):
-                # Already datetime
-                if timestamp.tzinfo is None:
-                    return timezone.make_aware(timestamp)
-                return timestamp
-            return None
-        except Exception as e:
-            logger.error(f"Error parsing timestamp {timestamp}: {e}")
-            return None
-
-    def calculate_connection_status(self, last_update_time):
-        """Расчет статуса связи на основе времени последнего обновления"""
-        if not last_update_time:
-            return 'long_offline'
-
-        now = timezone.now()
-        time_diff = now - last_update_time
-
-        if time_diff <= timedelta(hours=1):
-            return 'online'
-        elif time_diff <= timedelta(hours=24):
-            return 'no_connection'
-        else:
-            return 'long_offline'
-
-    def format_time_display(self, last_update_time):
-        """Форматирование времени для отображения"""
-        if not last_update_time:
-            return '—'
-
-        now = timezone.now()
-        time_diff = now - last_update_time
-
-        if time_diff < timedelta(minutes=1):
-            return 'только что'
-        elif time_diff < timedelta(hours=1):
-            minutes = int(time_diff.total_seconds() / 60)
-            return f'{minutes} мин назад'
-        elif time_diff < timedelta(hours=24):
-            hours = int(time_diff.total_seconds() / 3600)
-            return f'{hours} ч назад'
-        else:
-            days = time_diff.days
-            return f'{days} дн назад'
-
-    def extract_license_plate_from_properties(self, properties):
-        """Извлечение госномера из свойств ТС"""
-        try:
-            if not properties or not isinstance(properties, list):
-                return None
-
-            for prop in properties:
-                if prop.get('Name') == 'VehicleRegNumber':
-                    value = prop.get('Value')
-                    if value and isinstance(value, str) and value.strip():
-                        license_plate = value.strip()
-                        logger.info(f"✅ Found license plate in properties: {license_plate}")
-                        return license_plate
-
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ Error extracting license plate from properties: {e}")
-            return None
-
-    def parse_vehicle_data(self, vehicle_info, online_data):
-        """Парсинг данных по ТС"""
-        try:
-            vehicle_id = vehicle_info.get('ID')
-            vehicle_name = vehicle_info.get('Name', 'Unknown')
-
-            # Извлекаем госномер из свойств
-            properties = vehicle_info.get('Properties', [])
-            license_plate = self.extract_license_plate_from_properties(properties)
-
-            # Если не нашли в свойствах, используем fallback
-            if not license_plate:
-                license_plate = self.extract_license_plate_fallback(vehicle_name)
-
-            # Получаем онлайн данные для этого ТС
-            vehicle_online_data = online_data.get(str(vehicle_id), {})
-
-            # Парсим онлайн данные
-            speed = vehicle_online_data.get('Speed', 0)
-            if speed:
-                try:
-                    speed = float(speed)
-                except (ValueError, TypeError):
-                    speed = 0
-
-            # Время последнего обновления
-            dt_timestamp = vehicle_online_data.get('DT')
-            last_update_time = self.parse_timestamp(dt_timestamp)
-
-            # Статус связи
-            connection_status = self.calculate_connection_status(last_update_time)
-            last_update_display = self.format_time_display(last_update_time)
-
-            # Адрес
-            address = vehicle_online_data.get('Address', '')
-
-            # Топливо из Final параметров
-            final_params = vehicle_online_data.get('Final', {})
-            fuel_level = final_params.get('TankMainFuelLevel')
-
-            # Если нет TankMainFuelLevel, пробуем FL1 + FL2
-            if fuel_level is None:
-                fl1 = final_params.get('FL1')
-                fl2 = final_params.get('FL2')
-                if fl1 is not None and fl2 is not None:
-                    try:
-                        fuel_level = float(fl1) + float(fl2)
-                    except (ValueError, TypeError):
-                        fuel_level = None
-                elif fl1 is not None:
-                    try:
-                        fuel_level = float(fl1)
-                    except (ValueError, TypeError):
-                        fuel_level = None
-
-            # Координаты
-            last_position = vehicle_online_data.get('LastPosition', {})
-            latitude = last_position.get('Lat')
-            longitude = last_position.get('Lng')
-
-            # Форматируем топливо
-            if fuel_level is not None:
-                try:
-                    fuel_level = round(float(fuel_level), 1)
-                except (ValueError, TypeError):
-                    fuel_level = None
-
-            return {
-                'id': str(vehicle_id),
-                'name': vehicle_name,
-                'license_plate': license_plate,
-                'license_plate_number': license_plate,
-                'serial': vehicle_info.get('Serial'),
-                'is_online': connection_status == 'online',
-                'connection_status': connection_status,
-                'speed': speed,
-                'latitude': latitude,
-                'longitude': longitude,
-                'last_update': last_update_display,
-                'last_update_timestamp': dt_timestamp,
-                'address': address,
-                'fuel_level': fuel_level,
-                'engine_hours': final_params.get('EngineHours')
+            url = f"{self.BASE_URL}/EnumParameters"
+            params = {
+                'session': self.token,
+                'schemaID': schema_id,
+                'IDs': device_id
             }
 
-        except Exception as e:
-            logger.error(f"❌ Error parsing vehicle data for {vehicle_info.get('Name')}: {e}")
-            return None
+            response = self.session.get(url, params=params, timeout=30)
 
-    def extract_license_plate_fallback(self, vehicle_name):
-        """Fallback метод извлечения госномера из названия"""
-        try:
-            if not vehicle_name:
-                return "—"
+            if response.status_code != 200:
+                logger.error(f"Ошибка получения параметров: HTTP {response.status_code}")
+                return {}
 
-            # Паттерны для извлечения госномера из названий типа "644 Freightliner"
-            match = re.match(r'^(\d+)\s+', vehicle_name)
-            if match:
-                number = match.group(1)
-                return f"{number} FR"
-
-            numbers = re.findall(r'\d+', vehicle_name)
-            if numbers:
-                return f"{numbers[0]} FR"
-
-            return vehicle_name[:8]
+            result = response.json()
+            return result if isinstance(result, dict) else {}
 
         except Exception as e:
-            logger.error(f"❌ Error extracting license plate from {vehicle_name}: {e}")
-            return vehicle_name[:8] if vehicle_name else "—"
+            logger.error(f"Ошибка получения параметров: {e}")
+            return {}
 
-    def get_dashboard_data(self):
-        """Основной метод получения данных для дашборда"""
-        if not self.login("Osipenko", "Osipenko"):
-            logger.error("❌ Failed to login")
-            return None
+    def extract_fuel_data(self, online_data: Dict) -> Dict:
+        """Извлечение данных о топливе из онлайн данных"""
 
-        try:
-            logger.info("🔄 Starting dashboard data collection...")
+        if not online_data:
+            return {}
 
-            # Получаем схемы
-            schemas = self.get_schemas()
-            if not schemas:
-                logger.error("❌ No schemas available")
-                return None
+        fuel_data = {
+            'total_volume': 0,  # Суммарный объем топлива в литрах
+            'tank1_volume': 0,  # Объем в баке 1 (л)
+            'tank2_volume': 0,  # Объем в баке 2 (л)
+            'tank3_volume': 0,  # Объем в баке 3 (л)
+            'fuel_level_percent': 0,  # Уровень топлива в %
+            'fuel_remaining': 0,  # Остаток топлива (л)
+            'fuel_consumed': 0,  # Расход топлива (л)
+            'tanks_count': 0,  # Количество баков
+            'has_fuel_data': False,  # Есть ли данные о топливе
+            'raw_values': {}  # Сырые значения параметров
+        }
 
-            schema_id = schemas[0].get('ID')
-            schema_name = schemas[0].get('Name', 'Unknown')
-            logger.info(f"📋 Using schema: {schema_name} ({schema_id})")
+        # Проверяем наличие данных Final
+        if 'Final' in online_data and online_data['Final']:
+            final_data = online_data['Final']
 
-            # Получаем список ТС
-            vehicles_data = self.get_vehicles(schema_id)
-            if not vehicles_data or 'Items' not in vehicles_data:
-                logger.error("❌ No vehicles data received")
-                return None
+            # Собираем все значения, связанные с топливом
+            for key, value in final_data.items():
+                key_lower = key.lower()
 
-            # Получаем онлайн данные
-            online_data = self.get_online_info_all(schema_id)
-            logger.info(f"📊 Got online data for {len(online_data)} vehicles")
+                # Ищем параметры объема топлива (в литрах)
+                if any(word in key_lower for word in ['fl1', 'дут1', 'tank1', 'бак1']):
+                    try:
+                        fuel_data['tank1_volume'] = float(value)
+                        fuel_data['total_volume'] += fuel_data['tank1_volume']
+                        fuel_data['tanks_count'] += 1
+                        fuel_data['has_fuel_data'] = True
+                    except (ValueError, TypeError):
+                        pass
 
-            # Обрабатываем данные
-            vehicles = []
-            online_count = 0
-            no_connection_count = 0
-            long_offline_count = 0
+                elif any(word in key_lower for word in ['fl2', 'дут2', 'tank2', 'бак2']):
+                    try:
+                        fuel_data['tank2_volume'] = float(value)
+                        fuel_data['total_volume'] += fuel_data['tank2_volume']
+                        fuel_data['tanks_count'] += 1
+                        fuel_data['has_fuel_data'] = True
+                    except (ValueError, TypeError):
+                        pass
 
-            for vehicle_info in vehicles_data['Items']:
-                parsed_data = self.parse_vehicle_data(vehicle_info, online_data)
-                if parsed_data:
-                    vehicles.append(parsed_data)
+                elif any(word in key_lower for word in ['fl3', 'дут3', 'tank3', 'бак3']):
+                    try:
+                        fuel_data['tank3_volume'] = float(value)
+                        fuel_data['total_volume'] += fuel_data['tank3_volume']
+                        fuel_data['tanks_count'] += 1
+                        fuel_data['has_fuel_data'] = True
+                    except (ValueError, TypeError):
+                        pass
 
-                    # Считаем статистику
-                    if parsed_data['connection_status'] == 'online':
-                        online_count += 1
-                    elif parsed_data['connection_status'] == 'no_connection':
-                        no_connection_count += 1
-                    else:
-                        long_offline_count += 1
+                # Общий уровень топлива
+                elif any(word in key_lower for word in ['tankmain', 'общий', 'уровень', 'total']):
+                    try:
+                        volume = float(value)
+                        # Если значение большое, вероятно это объем в литрах
+                        if volume > 10:  # Предполагаем, что объем > 10 литров
+                            fuel_data['total_volume'] = max(fuel_data['total_volume'], volume)
+                            fuel_data['has_fuel_data'] = True
+                    except (ValueError, TypeError):
+                        pass
 
-            total_vehicles = len(vehicles)
+                # Уровень топлива в процентах
+                elif 'level' in key_lower and ('fuel' in key_lower or 'топл' in key_lower):
+                    try:
+                        level = float(value)
+                        if 0 <= level <= 100:  # Уровень в процентах
+                            fuel_data['fuel_level_percent'] = level
+                            fuel_data['has_fuel_data'] = True
+                    except (ValueError, TypeError):
+                        pass
 
-            logger.info(
-                f"📈 Dashboard stats: {online_count} online, {no_connection_count} no connection, {long_offline_count} long offline")
+                # Сохраняем сырое значение
+                fuel_data['raw_values'][key] = value
 
-            return {
-                'total_vehicles': total_vehicles,
-                'online_vehicles': online_count,
-                'no_connection_vehicles': no_connection_count,
-                'long_offline_vehicles': long_offline_count,
-                'vehicles': vehicles,
-                'schema_name': schema_name,
-                'last_update': timezone.now().isoformat()
-            }
+        # Также проверяем основные поля
+        for key in ['FuelLevel', 'TankMainFuelLevel', 'FuelRemaining', 'FuelConsumed']:
+            if key in online_data:
+                try:
+                    value = float(online_data[key])
+                    fuel_data['raw_values'][key] = value
 
-        except Exception as e:
-            logger.error(f"❌ Error getting dashboard data: {e}")
-            return None
+                    if key == 'FuelLevel' and 0 <= value <= 100:
+                        fuel_data['fuel_level_percent'] = value
+                        fuel_data['has_fuel_data'] = True
+                    elif key == 'TankMainFuelLevel' and value > 0:
+                        fuel_data['total_volume'] = max(fuel_data['total_volume'], value)
+                        fuel_data['has_fuel_data'] = True
+                    elif key == 'FuelRemaining':
+                        fuel_data['fuel_remaining'] = value
+                        fuel_data['has_fuel_data'] = True
+                    elif key == 'FuelConsumed':
+                        fuel_data['fuel_consumed'] = value
+                        fuel_data['has_fuel_data'] = True
+                except (ValueError, TypeError):
+                    pass
 
-    def get_vehicle_details(self, vehicle_id):
-        """Получение детальной информации по ТС"""
-        if not self.login("Osipenko", "Osipenko"):
-            return None
+        return fuel_data
 
-        try:
-            schemas = self.get_schemas()
-            if not schemas:
-                return None
+    def get_fuel_data_for_device(self, schema_id, device_id):
+        """Получить данные о топливе для конкретного устройства"""
 
-            schema_id = schemas[0].get('ID')
+        # Получаем онлайн данные
+        online_data_dict = self.get_online_data(schema_id, [device_id])
 
-            # Получаем список ТС
-            vehicles_data = self.get_vehicles(schema_id)
-            vehicle_info = None
+        if not online_data_dict or device_id not in online_data_dict:
+            return {}
 
-            for vehicle in vehicles_data.get('Items', []):
-                if str(vehicle.get('ID')) == vehicle_id:
-                    vehicle_info = vehicle
-                    break
+        online_data = online_data_dict[device_id]
 
-            if not vehicle_info:
-                return None
+        # Извлекаем данные о топливе
+        fuel_data = self.extract_fuel_data(online_data)
 
-            # Получаем онлайн данные
-            online_data = self.get_online_info_all(schema_id)
+        # Если нет данных, пробуем получить параметры для более точного запроса
+        if not fuel_data['has_fuel_data']:
+            # Получаем параметры устройства
+            params_data = self.get_device_parameters(schema_id, device_id)
 
-            # Парсим данные
-            parsed_data = self.parse_vehicle_data(vehicle_info, online_data)
+            if params_data and device_id in params_data:
+                device_params = params_data[device_id]
 
-            return parsed_data
+                # Ищем параметры топлива в конфигурации
+                fuel_param_names = []
 
-        except Exception as e:
-            logger.error(f"❌ Error getting vehicle details: {e}")
-            return None
+                # Проверяем FinalParams
+                for param in device_params.get('FinalParams', []):
+                    name = param.get('Name', '')
+                    caption = param.get('Caption', '')
+
+                    search_str = (name + caption).lower()
+                    if any(word in search_str for word in
+                           ['fuel', 'топл', 'бак', 'tank', 'расход', 'level', 'уровень']):
+                        fuel_param_names.append(name)
+
+                # Если нашли параметры топлива, делаем целевой запрос
+                if fuel_param_names:
+                    fuel_params_str = ','.join(fuel_param_names[:10])  # Ограничиваем количество
+
+                    # Делаем запрос с конкретными параметрами топлива
+                    url = f"{self.BASE_URL}/GetOnlineInfo"
+                    params = {
+                        'session': self.token,
+                        'schemaID': schema_id,
+                        'IDs': device_id,
+                        'finalParams': fuel_params_str,
+                        'mchp': '0'
+                    }
+
+                    try:
+                        response = self.session.get(url, params=params, timeout=30)
+                        if response.status_code == 200:
+                            fuel_response = response.json()
+                            if fuel_response and device_id in fuel_response:
+                                fuel_online_data = fuel_response[device_id]
+                                fuel_data = self.extract_fuel_data(fuel_online_data)
+                    except Exception as e:
+                        logger.error(f"Ошибка запроса данных топлива: {e}")
+
+        return fuel_data
+
+    def get_all_fuel_data(self, schema_id, device_ids=None):
+        """Получить данные о топливе для всех устройств или указанных"""
+
+        if not device_ids:
+            # Получаем все устройства
+            devices = self.get_devices(schema_id)
+            device_ids = [d['id'] for d in devices]
+
+        # Получаем онлайн данные для всех устройств
+        online_data_dict = self.get_online_data(schema_id, device_ids)
+
+        if not online_data_dict:
+            return {}
+
+        # Обрабатываем данные для каждого устройства
+        fuel_report = {
+            'total_fuel_volume': 0,  # Суммарный объем топлива по всем ТС
+            'devices_with_fuel': 0,  # Количество ТС с данными о топливе
+            'total_tanks': 0,  # Общее количество баков
+            'devices': {}  # Данные по каждому устройству
+        }
+
+        for device_id in device_ids:
+            if device_id in online_data_dict:
+                online_data = online_data_dict[device_id]
+                fuel_data = self.extract_fuel_data(online_data)
+
+                # Находим имя устройства
+                device_name = online_data.get('name', f'ТС {device_id[:8]}')
+
+                # Форматируем данные для отображения
+                device_fuel_info = {
+                    'name': device_name,
+                    'has_fuel_data': fuel_data['has_fuel_data'],
+                    'total_volume': round(fuel_data['total_volume'], 1),
+                    'fuel_level_percent': round(fuel_data['fuel_level_percent'], 1),
+                    'fuel_remaining': round(fuel_data['fuel_remaining'], 1),
+                    'fuel_consumed': round(fuel_data['fuel_consumed'], 1),
+                    'tanks_count': fuel_data['tanks_count'],
+                    'tank1_volume': round(fuel_data['tank1_volume'], 1),
+                    'tank2_volume': round(fuel_data['tank2_volume'], 1),
+                    'tank3_volume': round(fuel_data['tank3_volume'], 1),
+                    'raw_values': fuel_data['raw_values']
+                }
+
+                # Суммируем статистику
+                if fuel_data['has_fuel_data']:
+                    fuel_report['devices_with_fuel'] += 1
+                    fuel_report['total_fuel_volume'] += fuel_data['total_volume']
+                    fuel_report['total_tanks'] += fuel_data['tanks_count']
+
+                fuel_report['devices'][device_id] = device_fuel_info
+
+        return fuel_report

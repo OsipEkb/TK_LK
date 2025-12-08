@@ -1,24 +1,19 @@
-# config/urls.py
+"""
+URL configuration for TK_LK project.
+"""
+
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse
-from django.views.generic import RedirectView
+from django.shortcuts import redirect
 
-
-def home_view(request):
-    """Главная страница - редирект на вход"""
-    return RedirectView.as_view(url='/auth/login/', permanent=False)(request)
-
-
-def health_check(request):
-    return HttpResponse("OK", status=200)
-
+def redirect_to_dashboard(request):
+    """Перенаправление с корня на дашборд"""
+    return redirect('/dashboard/')
 
 urlpatterns = [
-    path('', home_view, name='home'),
-    path('health/', health_check, name='health_check'),
+    path('admin/', admin.site.urls),
+    path('', redirect_to_dashboard, name='home'),
     path('auth/', include('users.urls')),
     path('dashboard/', include('dashboard.urls')),
     path('vehicles/', include('vehicles.urls')),
-    path('reports/', include('reports.urls')),# И HTML и API через префиксы
 ]

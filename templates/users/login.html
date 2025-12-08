@@ -1,40 +1,385 @@
 {% extends 'base.html' %}
 
-{% block title %}Вход - Autograph Monitor{% endblock %}
+{% block page_title %}Вход - Autograph Monitor{% endblock %}
+
+{% block body_class %}login-page{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-page {
+        background: linear-gradient(135deg, var(--primary-black) 0%, #1A1A1A 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .login-container {
+        max-width: 450px;
+        width: 100%;
+        animation: fadeIn 0.8s ease-out;
+    }
+
+    .login-card {
+        background: var(--bg-card);
+        border: 2px solid var(--primary-gold);
+        border-radius: 20px;
+        overflow: hidden;
+        transition: all 0.4s ease;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+        z-index: 0;
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .login-card-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-header {
+        background: linear-gradient(135deg, var(--primary-black), #1A1A1A);
+        padding: 3rem 2rem;
+        text-align: center;
+        border-bottom: 2px solid var(--primary-gold);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-header::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 4px;
+        background: linear-gradient(90deg, transparent, var(--primary-gold), transparent);
+    }
+
+    .login-icon {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, var(--primary-black), var(--bg-card));
+        border: 3px solid var(--primary-gold);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2.5rem;
+        color: var(--primary-gold);
+        box-shadow: 0 10px 30px rgba(255, 215, 0, 0.2);
+        animation: pulse 2s infinite;
+    }
+
+    .login-title {
+        color: var(--primary-gold);
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+        color: var(--text-gray);
+        font-size: 1rem;
+    }
+
+    .login-body {
+        padding: 2.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.75rem;
+        position: relative;
+    }
+
+    .form-label {
+        color: var(--text-light);
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .form-label i {
+        color: var(--primary-gold);
+    }
+
+    .input-group {
+        position: relative;
+    }
+
+    .input-group-text {
+        background: var(--primary-black) !important;
+        border: 2px solid var(--border-color) !important;
+        border-right: none !important;
+        border-radius: 12px 0 0 12px !important;
+        color: var(--primary-gold) !important;
+        padding: 0.875rem 1.25rem !important;
+    }
+
+    .form-control {
+        background: var(--primary-black) !important;
+        border: 2px solid var(--border-color) !important;
+        border-left: none !important;
+        border-radius: 0 12px 12px 0 !important;
+        color: var(--text-light) !important;
+        padding: 0.875rem 1.25rem !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-gold) !important;
+        box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25) !important;
+    }
+
+    .btn-login {
+        background: linear-gradient(135deg, var(--primary-gold), var(--gold-dark)) !important;
+        color: var(--primary-black) !important;
+        border: none !important;
+        padding: 1rem !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+        margin-top: 1rem;
+        box-shadow: 0 8px 20px rgba(255, 215, 0, 0.2) !important;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-3px) !important;
+        box-shadow: 0 12px 30px rgba(255, 215, 0, 0.3) !important;
+    }
+
+    .btn-login:active {
+        transform: translateY(-1px) !important;
+    }
+
+    .login-footer {
+        text-align: center;
+        padding: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), transparent);
+    }
+
+    .login-info {
+        color: var(--text-gray);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .login-info i {
+        color: var(--primary-gold);
+    }
+
+    .password-toggle {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--text-gray);
+        cursor: pointer;
+        z-index: 10;
+    }
+
+    .password-toggle:hover {
+        color: var(--primary-gold);
+    }
+
+    .login-error {
+        animation: shake 0.5s ease;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    @media (max-width: 576px) {
+        .login-container {
+            padding: 0 15px;
+        }
+
+        .login-body {
+            padding: 2rem 1.5rem;
+        }
+
+        .login-header {
+            padding: 2.5rem 1.5rem;
+        }
+
+        .login-icon {
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-sign-in-alt"></i> Вход в систему</h4>
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-card-content">
+            <div class="login-header">
+                <div class="login-icon">
+                    <i class="fas fa-satellite-dish"></i>
+                </div>
+                <h1 class="login-title">Autograph Monitor</h1>
+                <p class="login-subtitle">Система мониторинга транспорта</p>
             </div>
-            <div class="card-body">
-                <form method="post">
+
+            <div class="login-body">
+                <form method="post" action="{% url 'users:login' %}">
                     {% csrf_token %}
-                    
-                    {% if form.errors %}
-                        <div class="alert alert-danger">
-                            Неверное имя пользователя или пароль.
-                        </div>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            {% if message.tags == 'error' %}
+                                <div class="alert alert-danger alert-dismissible fade show login-error" role="alert">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
                     {% endif %}
-                    
-                    <div class="mb-3">
-                        <label for="id_username" class="form-label">Имя пользователя</label>
-                        <input type="text" name="username" class="form-control" id="id_username" required>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-user"></i> Логин AutoGRAPH
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text"
+                                   name="username"
+                                   class="form-control"
+                                   placeholder="Введите ваш логин"
+                                   required
+                                   autofocus
+                                   value="{{ request.POST.username|default:'' }}">
+                        </div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="id_password" class="form-label">Пароль</label>
-                        <input type="password" name="password" class="form-control" id="id_password" required>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <i class="fas fa-lock"></i> Пароль AutoGRAPH
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password"
+                                   name="password"
+                                   class="form-control"
+                                   id="password"
+                                   placeholder="Введите пароль"
+                                   required>
+                            <button type="button" class="password-toggle" onclick="togglePassword()">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-sign-in-alt"></i> Войти
+
+                    {% if request.GET.next %}
+                        <input type="hidden" name="next" value="{{ request.GET.next }}">
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-login">
+                        <i class="fas fa-sign-in-alt me-2"></i> Войти в систему
                     </button>
                 </form>
+            </div>
+
+            <div class="login-footer">
+                <div class="login-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Используйте ваши учетные данные системы AutoGRAPH</span>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Страница входа загружена');
+
+        // Автоматически фокусируемся на поле логина
+        const usernameInput = document.querySelector('input[name="username"]');
+        if (usernameInput) {
+            usernameInput.focus();
+        }
+
+        // Добавляем обработчик для клавиши Enter
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                }
+            }
+        });
+
+        // Анимация появления
+        const loginCard = document.querySelector('.login-card');
+        if (loginCard) {
+            setTimeout(() => {
+                loginCard.style.transform = 'translateY(0)';
+                loginCard.style.opacity = '1';
+            }, 100);
+        }
+    });
+
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const toggleButton = document.querySelector('.password-toggle i');
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleButton.classList.remove('fa-eye');
+            toggleButton.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleButton.classList.remove('fa-eye-slash');
+            toggleButton.classList.add('fa-eye');
+        }
+    }
+</script>
 {% endblock %}
