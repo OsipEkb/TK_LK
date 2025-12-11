@@ -1,18 +1,16 @@
-# vehicles/services.py
 import logging
 import requests
 import warnings
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
-import json
-import math
+import time
+from typing import Dict, List, Any
+from datetime import datetime
 
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 logger = logging.getLogger(__name__)
 
 
 class AutoGraphHistoricalService:
-    """Сервис для работы с историческими данными AutoGRAPH API"""
+    """Улучшенный сервис для работы с историческими данными AutoGRAPH API"""
 
     BASE_URL = "https://web.tk-ekat.ru/ServiceJSON"
 
@@ -22,15 +20,53 @@ class AutoGraphHistoricalService:
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/json',
-            'User-Agent': 'MonitoringApp/1.0'
+            'User-Agent': 'MonitoringApp/2.0'
         })
         self.session.verify = False
         self.request_timeout = 300
 
-    def get_historical_data(self, device_ids: List[str], start_date: str, end_date: str) -> Dict:
+        # Полный список всех параметров для временных рядов
+        self.ALL_PARAMETERS = [
+            # Скорость и движение
+            "Speed", "MaxSpeed", "AverageSpeed", "SpeedLimit", "OverspeedCount",
+            "TotalDistance", "MoveDuration", "ParkDuration", "ParkCount",
+
+            # Топливо
+            "Engine1FuelConsum", "TankMainFuelLevel", "TankMainFuelLevel First",
+            "TankMainFuelLevel Last", "TankMainFuelUpVol Diff", "TankMainFuelDnVol Diff",
+            "Engine1FuelConsumMPer100km", "Engine1FuelConsumP/M",
+            "Engine1FuelConsumDuringMH", "Engine1FuelConsumP/MDuringMH",
+
+            # Двигатель
+            "Engine1Motohours", "Engine1MHOnParks", "Engine1MHInMove", "EngineRPM",
+            "EngineTemperature", "EngineOilPressure",
+
+            # Координаты и GPS
+            "Longitude", "Latitude", "Altitude", "Course", "GPSSatellites", "GPSHDOP",
+
+            # Качество вождения
+            "DQRating", "DQOverspeedPoints Diff", "DQExcessAccelPoints Diff",
+            "DQExcessBrakePoints Diff", "DQEmergencyBrakePoints Diff",
+            "DQExcessRightPoints Diff", "DQExcessLeftPoints Diff", "DQExcessBumpPoints Diff",
+            "DQPoints Diff",
+
+            # Время и работа
+            "TotalDuration", "WorkTime", "IdleTime", "Duration",
+
+            # Сигнал и питание
+            "GSMLevel", "PowerVoltage", "InternalTemperature",
+
+            # CAN-данные
+            "CAN_Speed", "CAN_RPM", "CAN_FuelLevel", "CAN_OilPressure", "CAN_Temperature",
+
+            # Датчики
+            "Temperature1", "Temperature2", "Temperature3", "Pressure1", "Pressure2",
+            "AnalogInput1", "AnalogInput2", "AnalogInput3", "AnalogInput4"
+        ]
+
+    def get_extended_historical_data(self, device_ids: List[str], start_date: str, end_date: str) -> Dict:
         """
-        Получение исторических данных ТРЕМЯ способами для сравнения
-        Возвращает данные в СОВМЕСТИМОМ формате для фронтенда
+        Получение расширенных исторических данных для временных рядов
         """
         if not self.token or not self.schema_id or not device_ids:
             logger.error("Отсутствуют необходимые параметры")
@@ -38,177 +74,422 @@ class AutoGraphHistoricalService:
 
         try:
             # Форматируем даты
-            start_fmt = start_date.replace('-', '')  # YYYYMMDD
-            end_fmt = end_date.replace('-', '') + '-2359'  # YYYYMMDD-HHMM
+            start_fmt = start_date.replace('-', '')
+            end_fmt = end_date.replace('-', '') + '-2359'
 
-            logger.info(f"📊 Запрос исторических данных:")
+            logger.info(f"📊 Запрос расширенных исторических данных:")
             logger.info(f"  - ТС: {len(device_ids)} шт")
             logger.info(f"  - Период: {start_date} - {end_date}")
 
-            # 1. Получаем данные через GetTripsOnly (готовые данные)
-            logger.info("1️⃣ Получение данных GetTripsOnly...")
-            trips_only_data = self._get_trips_only_data(device_ids, start_fmt, end_fmt)
+            # 1. Получаем ВСЕ данные через GetTripItems
+            logger.info("1️⃣ Получение ВСЕХ данных через GetTripItems...")
+            all_data = self._get_complete_trip_items_data(device_ids, start_fmt, end_fmt)
 
-            # 2. Получаем данные через GetTripItems (сырые данные для графиков)
-            logger.info("2️⃣ Получение данных GetTripItems...")
-            trip_items_data = self._get_trip_items_data(device_ids, start_fmt, end_fmt, stage='Motion')
+            if not all_data:
+                logger.warning("❌ Не удалось получить данные через GetTripItems")
+                return self._get_fallback_data(device_ids, start_date, end_date)
 
-            # 3. Получаем данные через GetTripsTotal (итоговые данные)
-            logger.info("3️⃣ Получение данных GetTripsTotal...")
-            trips_total_data = self._get_trips_total_data(device_ids, start_fmt, end_fmt)
+            # 2. Получаем данные через GetTripsTotal для сводки
+            logger.info("2️⃣ Получение сводных данных GetTripsTotal...")
+            summary_data = self._get_trips_total_data(device_ids, start_fmt, end_fmt)
 
-            # Объединяем все данные в СОВМЕСТИМЫЙ формат
-            logger.info("🔄 Объединение данных для фронтенда...")
-            processed_data = self._merge_data_for_frontend(
-                trips_only_data=trips_only_data,
-                trip_items_data=trip_items_data,
-                trips_total_data=trips_total_data,
+            # 3. Форматируем для временных рядов (БЕЗ ОГРАНИЧЕНИЯ НА 1000 ЗАПИСЕЙ)
+            logger.info("3️⃣ Форматирование данных для временных рядов...")
+            processed_data = self._format_for_timeseries_full(
+                all_data=all_data,
+                summary_data=summary_data,
                 start_date=start_date,
                 end_date=end_date
             )
 
-            logger.info(f"✅ Данные успешно обработаны")
+            logger.info(f"✅ Данные успешно обработаны: {processed_data.get('total_records', 0)} записей")
             return processed_data
 
         except Exception as e:
-            logger.error(f"❌ Ошибка получения исторических данных: {e}", exc_info=True)
-            return {}
+            logger.error(f"❌ Ошибка получения расширенных данных: {e}", exc_info=True)
+            return self._get_fallback_data(device_ids, start_date, end_date)
 
-    def _merge_data_for_frontend(self, trips_only_data: Dict, trip_items_data: Dict,
-                                 trips_total_data: Dict, start_date: str, end_date: str) -> Dict:
-        """Объединяем данные для фронтенда в СОВМЕСТИМОМ формате"""
+    def _format_for_timeseries_full(self, all_data: Dict, summary_data: Dict,
+                                  start_date: str, end_date: str) -> Dict:
+        """Форматирование данных для временных рядов (БЕЗ ОГРАНИЧЕНИЙ)"""
         processed_data = {
-            'vehicles': {},
+            'time_series': [],
             'summary': {},
-            'chart_data': {},
-            'total_stages': 0,
-            'available_parameters': [],
+            'vehicle_info': {},
+            'parameters': [],
+            'total_records': 0,
             'period': {'start': start_date, 'end': end_date},
-            'data_type': 'mixed',
-            'sources': ['GetTripsOnly', 'GetTripItems', 'GetTripsTotal'],
-            'notes': 'Данные получены из трех источников API Autograf'
+            'data_type': 'time_series_extended'
         }
 
-        # Собираем все ID устройств
-        all_device_ids = set()
-        all_device_ids.update(trips_only_data.keys())
-        all_device_ids.update(trip_items_data.keys())
-        all_device_ids.update(trips_total_data.keys())
+        if not all_data or not isinstance(all_data, dict):
+            logger.warning("⚠️ Нет данных для форматирования")
+            return processed_data
 
-        total_stages = 0
+        total_records = 0
 
-        for device_id in all_device_ids:
+        for device_id, device_data in all_data.items():
             try:
-                # Получаем имя ТС
-                vehicle_name = self._get_vehicle_name(device_id, trips_only_data, trip_items_data, trips_total_data)
+                if not device_data or not isinstance(device_data, dict):
+                    logger.warning(f"⚠️ Пропускаем некорректные данные ТС {device_id}")
+                    continue
 
-                # Извлекаем статистику
-                trips_only_stats = self._extract_trips_only_stats(device_id, trips_only_data)
-                trip_items_stats, raw_stages = self._extract_trip_items_stats(device_id, trip_items_data)
-                trips_total_stats = self._extract_trips_total_stats(device_id, trips_total_data)
+                vehicle_name = device_data.get('Name', f'ТС {device_id[:8]}')
+                params = device_data.get('Params', [])
+                items = device_data.get('Items', [])
 
-                # Создаем сводку
-                summary = self._create_vehicle_summary(trips_only_stats, trip_items_stats)
+                if not items:
+                    logger.debug(f"⚠️ Нет записей для ТС {vehicle_name}")
+                    continue
 
-                # Сохраняем параметры (из первого ТС)
-                if trip_items_data.get(device_id) and 'Params' in trip_items_data[device_id]:
-                    params = trip_items_data[device_id]['Params']
-                    if not processed_data['available_parameters']:
-                        processed_data['available_parameters'] = params
-
-                total_stages += len(raw_stages)
-
-                processed_data['vehicles'][device_id] = {
-                    'id': device_id,
+                processed_data['vehicle_info'][device_id] = {
                     'name': vehicle_name,
-                    'trips_only_stats': trips_only_stats,
-                    'trip_items_stats': trip_items_stats,
-                    'trips_total_stats': trips_total_stats,
-                    'summary': summary,
-                    'raw_stages': raw_stages
+                    'param_count': len(params),
+                    'item_count': len(items)
                 }
 
-                logger.debug(f"✅ ТС {vehicle_name} обработан: {len(raw_stages)} стадий")
+                if params and isinstance(params, list):
+                    for param in params:
+                        if param and param not in processed_data['parameters']:
+                            processed_data['parameters'].append(param)
+
+                # ВАЖНО: УБИРАЕМ ОГРАНИЧЕНИЕ НА 1000 ЗАПИСЕЙ
+                for item in items:  # Без [:1000]
+                    if not item or not isinstance(item, dict):
+                        continue
+
+                    time_point = self._create_time_point(item, params, vehicle_name, device_id)
+                    if time_point:
+                        processed_data['time_series'].append(time_point)
+                        total_records += 1
+
+                logger.info(f"✅ Обработан ТС {vehicle_name}: {len(items)} записей, {len(params)} параметров")
 
             except Exception as e:
                 logger.error(f"❌ Ошибка обработки ТС {device_id}: {e}")
 
-        # Создаем общую статистику
-        processed_data['summary'] = self._create_overall_summary(processed_data['vehicles'])
-        processed_data['total_stages'] = total_stages
+        processed_data['time_series'].sort(key=lambda x: x.get('timestamp', ''))
+        processed_data['total_records'] = total_records
 
-        logger.info(f"✅ Обработка завершена: {len(processed_data['vehicles'])} ТС, {total_stages} стадий")
+        processed_data['summary'] = self._create_timeseries_summary(
+            processed_data['time_series'],
+            summary_data
+        )
+
+        logger.info(f"📊 Итог: {total_records} записей, {len(processed_data['parameters'])} параметров")
         return processed_data
 
-    def _get_trips_only_data(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
-        """Получаем готовые данные через GetTripsOnly"""
-        url = f"{self.BASE_URL}/GetTripsOnly"
-        params = {
-            'session': self.token,
-            'schemaID': self.schema_id,
-            'IDs': ','.join(device_ids),
-            'SD': start_fmt,
-            'ED': end_fmt,
-            'tripSplitterIndex': 0
-        }
+    def _get_fallback_data(self, device_ids: List[str], start_date: str, end_date: str) -> Dict:
+        """Получение данных fallback способом для совместимости"""
+        logger.info("🔄 Использование fallback метода получения данных...")
 
         try:
-            response = self.session.get(url, params=params, timeout=30)
+            # Используем минимальный набор параметров
+            basic_params = [
+                "Speed", "MaxSpeed", "AverageSpeed", "TotalDistance",
+                "Engine1FuelConsum", "Engine1Motohours", "DQRating",
+                "MoveDuration", "ParkDuration", "OverspeedCount"
+            ]
 
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ GetTripsOnly: получено данных для {len(data)} ТС")
-                return data
-            else:
-                logger.error(f"❌ GetTripsOnly: HTTP {response.status_code}")
+            start_fmt = start_date.replace('-', '')
+            end_fmt = end_date.replace('-', '') + '-2359'
+
+            data = self._get_trip_items_data_with_params(
+                device_ids=device_ids,
+                start_fmt=start_fmt,
+                end_fmt=end_fmt,
+                params=basic_params
+            )
+
+            if not data:
+                return self._create_empty_response(start_date, end_date)
+
+            # Форматируем минимальные данные
+            processed_data = {
+                'time_series': [],
+                'summary': {},
+                'vehicle_info': {},
+                'parameters': [],
+                'total_records': 0,
+                'period': {'start': start_date, 'end': end_date},
+                'data_type': 'fallback_basic'
+            }
+
+            for device_id, device_data in data.items():
+                if not device_data:
+                    continue
+
+                vehicle_name = device_data.get('Name', f'ТС {device_id[:8]}')
+                params = device_data.get('Params', [])
+                items = device_data.get('Items', [])
+
+                processed_data['vehicle_info'][device_id] = {
+                    'name': vehicle_name,
+                    'param_count': len(params),
+                    'item_count': len(items)
+                }
+
+                # Обрабатываем записи (БЕЗ ОГРАНИЧЕНИЙ)
+                for item in items:  # Без [:100]
+                    time_point = self._create_time_point(item, params, vehicle_name, device_id)
+                    if time_point:
+                        processed_data['time_series'].append(time_point)
+
+            processed_data['time_series'].sort(key=lambda x: x.get('timestamp', ''))
+            processed_data['total_records'] = len(processed_data['time_series'])
+
+            # Создаем простую сводку
+            if processed_data['time_series']:
+                processed_data['summary'] = {
+                    'total_records': processed_data['total_records'],
+                    'vehicle_count': len(processed_data['vehicle_info']),
+                    'time_range': {
+                        'first': processed_data['time_series'][0].get('timestamp'),
+                        'last': processed_data['time_series'][-1].get('timestamp') if processed_data[
+                            'time_series'] else None
+                    }
+                }
+
+            logger.info(f"✅ Fallback данные получены: {processed_data['total_records']} записей")
+            return processed_data
 
         except Exception as e:
-            logger.error(f"❌ GetTripsOnly ошибка: {e}")
+            logger.error(f"❌ Ошибка fallback метода: {e}")
+            return self._create_empty_response(start_date, end_date)
 
-        return {}
+    def _create_empty_response(self, start_date: str, end_date: str) -> Dict:
+        """Создание пустого ответа"""
+        return {
+            'time_series': [],
+            'summary': {
+                'total_records': 0,
+                'vehicle_count': 0,
+                'time_range': {'start': start_date, 'end': end_date}
+            },
+            'vehicle_info': {},
+            'parameters': [],
+            'total_records': 0,
+            'period': {'start': start_date, 'end': end_date},
+            'data_type': 'empty',
+            'notes': 'Нет данных для указанного периода'
+        }
 
-    def _get_trip_items_data(self, device_ids: List[str], start_fmt: str, end_fmt: str, stage: str = None) -> Dict:
-        """Получаем сырые данные через GetTripItems"""
-        # Параметры для получения
-        params_list = [
-            "TotalDistance", "MaxSpeed", "AverageSpeed", "Engine1FuelConsum",
-            "Engine1FuelConsumM", "Engine1FuelConsumP", "OverspeedCount",
-            "TankMainFuelLevel First", "TankMainFuelLevel Last", "Engine1Motohours",
-            "MoveDuration", "ParkDuration", "TotalDuration", "DQRating", "ParkCount",
-            "DateTime First", "DateTime Last", "FirstLocation", "LastLocation"
-        ]
+    def _get_complete_trip_items_data(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
+        """
+        Получаем полные данные через GetTripItems с оптимизацией
+        """
+        # Разбиваем на группы по 50 параметров для избежания превышения лимита URL
+        param_groups = self._split_parameters_into_groups(self.ALL_PARAMETERS, group_size=50)
 
+        all_data = {}
+
+        for i, param_group in enumerate(param_groups):
+            logger.info(f"📦 Запрос группы параметров {i + 1}/{len(param_groups)} ({len(param_group)} параметров)")
+
+            data = self._get_trip_items_data_with_params(
+                device_ids=device_ids,
+                start_fmt=start_fmt,
+                end_fmt=end_fmt,
+                params=param_group
+            )
+
+            if not data:
+                logger.warning(f"❌ Группа параметров {i + 1} не вернула данных")
+                continue
+
+            # Объединяем данные
+            self._merge_trip_items_data(all_data, data)
+
+            time.sleep(0.5)
+
+        return all_data if all_data else None
+
+    def _get_trip_items_data_with_params(self, device_ids: List[str], start_fmt: str,
+                                         end_fmt: str, params: List[str]) -> Dict:
+        """Получаем данные с конкретными параметрами"""
         url = f"{self.BASE_URL}/GetTripItems"
-        params = {
+
+        params_str = ','.join(params)
+
+        request_params = {
             'session': self.token,
             'schemaID': self.schema_id,
             'IDs': ','.join(device_ids),
             'SD': start_fmt,
             'ED': end_fmt,
             'tripSplitterIndex': 0,
-            'tripParams': ','.join(params_list)
+            'tripParams': params_str,
+            'stage': 'Motion,Idle,Parking,Unknown'
         }
 
-        if stage:
-            params['stage'] = stage
-
         try:
-            response = self.session.get(url, params=params, timeout=60)
+            logger.debug(f"Отправка запроса с параметрами: {len(params)} шт")
+            response = self.session.get(url, params=request_params, timeout=90)
 
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ GetTripItems: получено данных для {len(data)} ТС")
-                return data
+                if data and isinstance(data, dict):
+                    logger.debug(f"✅ Получены данные для {len(data)} ТС")
+                    return data
+                else:
+                    logger.warning(f"⚠️ Данные пустые или в неверном формате")
+                    return {}
             else:
-                logger.error(f"❌ GetTripItems: HTTP {response.status_code}")
+                logger.error(f"❌ HTTP {response.status_code}: {response.text[:200]}")
+                return {}
 
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ Таймаут запроса")
+            return {}
         except Exception as e:
-            logger.error(f"❌ GetTripItems ошибка: {e}")
+            logger.error(f"❌ Ошибка запроса: {e}")
+            return {}
 
-        return {}
+    def _merge_trip_items_data(self, main_data: Dict, new_data: Dict):
+        """Объединение данных из нескольких запросов"""
+        if not new_data or not isinstance(new_data, dict):
+            logger.warning("⚠️ Попытка объединить пустые или некорректные данные")
+            return
+
+        for device_id, device_data in new_data.items():
+            if not device_data or not isinstance(device_data, dict):
+                logger.warning(f"⚠️ Пропускаем некорректные данные для ТС {device_id}")
+                continue
+
+            if device_id not in main_data:
+                main_data[device_id] = {
+                    'Name': device_data.get('Name', f'ТС {device_id[:8]}'),
+                    'Params': [],
+                    'Items': []
+                }
+
+            existing_params = main_data[device_id]['Params']
+            new_params = device_data.get('Params', [])
+
+            if new_params and isinstance(new_params, list):
+                for param in new_params:
+                    if param not in existing_params:
+                        existing_params.append(param)
+
+            existing_items = main_data[device_id]['Items']
+            new_items = device_data.get('Items', [])
+
+            if not existing_items and new_items:
+                main_data[device_id]['Items'] = new_items.copy()
+            elif existing_items and new_items and len(existing_items) == len(new_items):
+                for i, (existing_item, new_item) in enumerate(zip(existing_items, new_items)):
+                    if i < len(new_item.get('Values', [])):
+                        existing_item['Values'].extend(new_item['Values'])
+
+    def _create_time_point(self, item: Dict, params: List[str],
+                           vehicle_name: str, device_id: str) -> Dict:
+        """Создание точки временного ряда"""
+        if not item or not isinstance(item, dict):
+            return None
+
+        timestamp = item.get('DT', '')
+        if not timestamp:
+            return None
+
+        time_point = {
+            'timestamp': timestamp,
+            'vehicle_id': device_id,
+            'vehicle_name': vehicle_name,
+            'stage': item.get('Stage', 'Unknown'),
+            'duration': item.get('Duration', ''),
+            'caption': item.get('Caption', ''),
+            'values': {},
+            'raw_values': item.get('Values', [])
+        }
+
+        values = item.get('Values', [])
+        if values and isinstance(values, list):
+            for i, param in enumerate(params):
+                if i < len(values):
+                    value = values[i]
+                    numeric_value = self._parse_numeric_value(value)
+
+                    if numeric_value is not None:
+                        time_point['values'][param] = numeric_value
+                    else:
+                        time_point['values'][param] = value
+
+        return time_point
+
+    def _create_timeseries_summary(self, time_series: List[Dict], summary_data: Dict) -> Dict:
+        """Создание сводки для временных рядов"""
+        summary = {
+            'total_records': len(time_series),
+            'vehicle_count': len(set(p.get('vehicle_id', '') for p in time_series if p.get('vehicle_id'))),
+            'time_range': {},
+            'parameter_stats': {},
+            'vehicle_stats': {}
+        }
+
+        if not time_series:
+            return summary
+
+        timestamps = [p.get('timestamp', '') for p in time_series if p.get('timestamp')]
+        if timestamps:
+            summary['time_range']['first'] = min(timestamps)
+            summary['time_range']['last'] = max(timestamps)
+
+        all_params = set()
+        for point in time_series:
+            if point.get('values'):
+                all_params.update(point['values'].keys())
+
+        for param in all_params:
+            values = []
+            for point in time_series:
+                if param in point.get('values', {}):
+                    value = point['values'][param]
+                    if isinstance(value, (int, float)):
+                        values.append(value)
+
+            if values:
+                summary['parameter_stats'][param] = {
+                    'count': len(values),
+                    'min': min(values),
+                    'max': max(values),
+                    'avg': sum(values) / len(values),
+                    'sum': sum(values)
+                }
+
+        vehicles = {}
+        for point in time_series:
+            vehicle_id = point.get('vehicle_id')
+            if vehicle_id:
+                if vehicle_id not in vehicles:
+                    vehicles[vehicle_id] = {
+                        'name': point.get('vehicle_name', ''),
+                        'record_count': 0,
+                        'params': set()
+                    }
+                vehicles[vehicle_id]['record_count'] += 1
+                if point.get('values'):
+                    vehicles[vehicle_id]['params'].update(point['values'].keys())
+
+        for vehicle_id, stats in vehicles.items():
+            summary['vehicle_stats'][vehicle_id] = {
+                'name': stats['name'],
+                'record_count': stats['record_count'],
+                'param_count': len(stats['params'])
+            }
+
+        return summary
+
+    def _split_parameters_into_groups(self, parameters: List[str], group_size: int = 50) -> List[List[str]]:
+        """Разбиваем параметры на группы для избежания превышения лимита URL"""
+        groups = []
+        for i in range(0, len(parameters), group_size):
+            groups.append(parameters[i:i + group_size])
+
+        logger.info(f"📊 Параметры разбиты на {len(groups)} групп по {group_size} параметров")
+        return groups
 
     def _get_trips_total_data(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
-        """Получаем итоговые данные через GetTripsTotal"""
+        """Получаем сводные данные через GetTripsTotal"""
         url = f"{self.BASE_URL}/GetTripsTotal"
         params = {
             'session': self.token,
@@ -223,291 +504,37 @@ class AutoGraphHistoricalService:
             response = self.session.get(url, params=params, timeout=30)
 
             if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ GetTripsTotal: получено данных для {len(data)} ТС")
-                return data
-            else:
-                logger.error(f"❌ GetTripsTotal: HTTP {response.status_code}")
-
+                return response.json()
         except Exception as e:
             logger.error(f"❌ GetTripsTotal ошибка: {e}")
 
         return {}
 
-    def _get_vehicle_name(self, device_id: str, *data_sources) -> str:
-        """Получаем имя ТС из любого источника"""
-        for source in data_sources:
-            if isinstance(source, dict) and device_id in source:
-                vehicle_data = source[device_id]
-                if isinstance(vehicle_data, dict):
-                    return vehicle_data.get('Name', f'ТС {device_id[:8]}')
-        return f'ТС {device_id[:8]}'
+    def get_historical_data(self, device_ids: List[str], start_date: str, end_date: str) -> Dict:
+        """
+        Совместимый метод для получения исторических данных
+        (сохраняем для обратной совместимости)
+        """
+        return self.get_extended_historical_data(device_ids, start_date, end_date)
 
-    def _extract_trips_only_stats(self, device_id: str, trips_only_data: Dict) -> Dict:
-        """Извлекаем статистику из GetTripsOnly"""
-        stats = {
-            'trip_count': 0,
-            'total_distance': 0.0,
-            'total_fuel': 0.0,
-            'max_speed': 0.0,
-            'avg_speed': 0.0,
-            'motohours': 0.0,
-            'move_duration': 0.0,
-            'park_duration': 0.0,
-            'park_count': 0,
-            'overspeed_count': 0,
-            'fuel_level_start': 0.0,
-            'fuel_level_end': 0.0,
-            'trips': []
-        }
+    def _parse_numeric_value(self, value):
+        """Парсинг числового значения"""
+        if value is None:
+            return None
 
-        if device_id in trips_only_data:
-            vehicle_data = trips_only_data[device_id]
+        if isinstance(value, (int, float)):
+            return float(value)
 
-            if 'Trips' in vehicle_data and isinstance(vehicle_data['Trips'], list):
-                trips = vehicle_data['Trips']
-                stats['trip_count'] = len(trips)
+        if isinstance(value, str):
+            try:
+                clean_value = value.replace(',', '.').strip()
+                if clean_value == '':
+                    return None
+                return float(clean_value)
+            except:
+                return None
 
-                for trip in trips:
-                    if 'Total' in trip and isinstance(trip['Total'], dict):
-                        total = trip['Total']
-
-                        trip_info = {
-                            'date': trip.get('SD', ''),
-                            'start_time': total.get('DateTime First', ''),
-                            'end_time': total.get('DateTime Last', ''),
-                            'distance': self._parse_numeric_value(total.get('TotalDistance', 0)),
-                            'fuel': self._parse_numeric_value(total.get('Engine1FuelConsum', 0)),
-                            'max_speed': self._parse_numeric_value(total.get('MaxSpeed', 0)),
-                            'avg_speed': self._parse_numeric_value(total.get('AverageSpeed', 0)),
-                            'motohours': self._time_str_to_hours(total.get('Engine1Motohours', '00:00:00')),
-                            'move_duration': self._time_str_to_hours(total.get('MoveDuration', '00:00:00')),
-                            'park_duration': self._time_str_to_hours(total.get('ParkDuration', '00:00:00')),
-                            'park_count': int(total.get('ParkCount', 0)),
-                            'overspeed_count': int(total.get('OverspeedCount', 0))
-                        }
-
-                        # Суммируем статистику
-                        stats['total_distance'] += trip_info['distance'] or 0
-                        stats['total_fuel'] += trip_info['fuel'] or 0
-                        stats['max_speed'] = max(stats['max_speed'], trip_info['max_speed'] or 0)
-
-                        if trip_info['distance'] and trip_info['avg_speed']:
-                            stats['avg_speed'] = (stats['avg_speed'] * len(stats['trips']) + trip_info['avg_speed']) / (
-                                        len(stats['trips']) + 1)
-
-                        stats['motohours'] += trip_info['motohours'] or 0
-                        stats['move_duration'] += trip_info['move_duration'] or 0
-                        stats['park_duration'] += trip_info['park_duration'] or 0
-                        stats['park_count'] += trip_info['park_count'] or 0
-                        stats['overspeed_count'] += trip_info['overspeed_count'] or 0
-
-                        stats['trips'].append(trip_info)
-
-        # Округляем значения
-        for key in ['total_distance', 'total_fuel', 'max_speed', 'avg_speed', 'motohours',
-                    'move_duration', 'park_duration']:
-            if key in stats:
-                stats[key] = round(stats[key] or 0, 2)
-
-        return stats
-
-    def _extract_trip_items_stats(self, device_id: str, trip_items_data: Dict) -> Tuple[Dict, List]:
-        """Извлекаем статистику и сырые данные из GetTripItems"""
-        stats = {
-            'stage_count': 0,
-            'daily_data': {},
-            'hourly_data': {},
-            'stage_types': {},
-            'statistics': {},
-            'raw_stages': []
-        }
-
-        raw_stages = []
-
-        if device_id in trip_items_data:
-            vehicle_data = trip_items_data[device_id]
-
-            # Получаем список параметров
-            params = vehicle_data.get('Params', [])
-            items = vehicle_data.get('Items', [])
-
-            stats['stage_count'] = len(items)
-
-            # Статистика по параметрам
-            param_stats = {}
-
-            # Обрабатываем каждую запись
-            for item in items:
-                # Базовые данные
-                stage = item.get('Stage', 'Unknown')
-                dt = item.get('DT', '')
-                duration = item.get('Duration', '')
-                caption = item.get('Caption', '')
-                values = item.get('Values', [])
-
-                # Извлекаем дату
-                date_key = ''
-                if 'T' in dt:
-                    date_key = dt.split('T')[0]
-                elif ' ' in dt:
-                    date_key = dt.split(' ')[0]
-                else:
-                    date_key = dt[:10] if len(dt) >= 10 else dt
-
-                # Создаем запись сырых данных
-                raw_stage = {
-                    'stage': stage,
-                    'dt': dt,
-                    'duration': duration,
-                    'caption': caption,
-                    'date': date_key,
-                    'raw_values': {}
-                }
-
-                # Извлекаем значения параметров
-                for i, param in enumerate(params):
-                    if i < len(values):
-                        value = values[i]
-                        # Преобразуем в число если возможно
-                        num_value = self._parse_numeric_value(value)
-                        raw_stage[param] = num_value if num_value is not None else value
-                        raw_stage['raw_values'][param] = value
-
-                        # Собираем статистику по параметрам
-                        if num_value is not None:
-                            if param not in param_stats:
-                                param_stats[param] = []
-                            param_stats[param].append(num_value)
-
-                # Считаем типы стадий
-                if stage not in stats['stage_types']:
-                    stats['stage_types'][stage] = 0
-                stats['stage_types'][stage] += 1
-
-                raw_stages.append(raw_stage)
-
-            # Рассчитываем статистику по параметрам
-            for param, values in param_stats.items():
-                if values:
-                    stats['statistics'][param] = {
-                        'min': min(values),
-                        'max': max(values),
-                        'avg': sum(values) / len(values),
-                        'sum': sum(values),
-                        'count': len(values)
-                    }
-
-        stats['raw_stages'] = raw_stages
-        return stats, raw_stages
-
-    def _extract_trips_total_stats(self, device_id: str, trips_total_data: Dict) -> Dict:
-        """Извлекаем статистику из GetTripsTotal"""
-        stats = {
-            'total_distance': 0.0,
-            'total_fuel': 0.0,
-            'max_speed': 0.0,
-            'avg_speed': 0.0,
-            'overspeed_count': 0,
-            'park_count': 0,
-            'motohours': 0.0,
-            'move_duration': 0.0,
-            'park_duration': 0.0
-        }
-
-        if device_id in trips_total_data:
-            vehicle_data = trips_total_data[device_id]
-
-            # Проверяем разные структуры
-            total_data = None
-
-            if 'Total' in vehicle_data:
-                total_data = vehicle_data['Total']
-            elif 'Trips' in vehicle_data and vehicle_data['Trips']:
-                trip = vehicle_data['Trips'][0]
-                if 'Total' in trip:
-                    total_data = trip['Total']
-
-            if isinstance(total_data, dict):
-                stats['total_distance'] = self._parse_numeric_value(total_data.get('TotalDistance', 0)) or 0
-                stats['total_fuel'] = self._parse_numeric_value(total_data.get('Engine1FuelConsum', 0)) or 0
-                stats['max_speed'] = self._parse_numeric_value(total_data.get('MaxSpeed', 0)) or 0
-                stats['avg_speed'] = self._parse_numeric_value(total_data.get('AverageSpeed', 0)) or 0
-                stats['overspeed_count'] = int(total_data.get('OverspeedCount', 0))
-                stats['park_count'] = int(total_data.get('ParkCount', 0))
-                stats['motohours'] = self._time_str_to_hours(total_data.get('Engine1Motohours', '00:00:00'))
-                stats['move_duration'] = self._time_str_to_hours(total_data.get('MoveDuration', '00:00:00'))
-                stats['park_duration'] = self._time_str_to_hours(total_data.get('ParkDuration', '00:00:00'))
-
-        # Округляем
-        for key in ['total_distance', 'total_fuel', 'max_speed', 'avg_speed', 'motohours', 'move_duration',
-                    'park_duration']:
-            stats[key] = round(stats[key], 2)
-
-        return stats
-
-    def _create_vehicle_summary(self, trips_only_stats: Dict, trip_items_stats: Dict) -> Dict:
-        """Создаем сводку по ТС"""
-        return {
-            'distance': trips_only_stats.get('total_distance', 0),
-            'fuel': trips_only_stats.get('total_fuel', 0),
-            'max_speed': trips_only_stats.get('max_speed', 0),
-            'avg_speed': trips_only_stats.get('avg_speed', 0),
-            'motohours': trips_only_stats.get('motohours', 0),
-            'move_duration': trips_only_stats.get('move_duration', 0),
-            'park_duration': trips_only_stats.get('park_duration', 0),
-            'park_count': trips_only_stats.get('park_count', 0),
-            'overspeed_count': trips_only_stats.get('overspeed_count', 0),
-            'stage_count': trip_items_stats.get('stage_count', 0),
-            'trip_count': trips_only_stats.get('trip_count', 0)
-        }
-
-    def _create_overall_summary(self, vehicles_data: Dict) -> Dict:
-        """Создаем общую сводку"""
-        summary = {
-            'total_vehicles': len(vehicles_data),
-            'total_distance': 0.0,
-            'total_fuel': 0.0,
-            'total_motohours': 0.0,
-            'total_trips': 0,
-            'total_stages': 0,
-            'avg_speed': 0.0,
-            'avg_max_speed': 0.0,
-            'avg_rating': 0.0
-        }
-
-        total_speed = 0
-        total_max_speed = 0
-        total_rating = 0
-        vehicles_with_data = 0
-
-        for vehicle_id, vehicle_data in vehicles_data.items():
-            vehicle_summary = vehicle_data.get('summary', {})
-            trip_items_stats = vehicle_data.get('trip_items_stats', {})
-
-            summary['total_distance'] += vehicle_summary.get('distance', 0)
-            summary['total_fuel'] += vehicle_summary.get('fuel', 0)
-            summary['total_motohours'] += vehicle_summary.get('motohours', 0)
-            summary['total_trips'] += vehicle_summary.get('trip_count', 0)
-            summary['total_stages'] += trip_items_stats.get('stage_count', 0)
-
-            avg_speed = vehicle_summary.get('avg_speed', 0)
-            max_speed = vehicle_summary.get('max_speed', 0)
-
-            if avg_speed > 0:
-                total_speed += avg_speed
-                total_max_speed += max_speed
-                vehicles_with_data += 1
-
-        if vehicles_with_data > 0:
-            summary['avg_speed'] = round(total_speed / vehicles_with_data, 2)
-            summary['avg_max_speed'] = round(total_max_speed / vehicles_with_data, 2)
-
-        # Округляем значения
-        for key in ['total_distance', 'total_fuel', 'total_motohours']:
-            summary[key] = round(summary[key], 2)
-
-        return summary
+        return None
 
     def _time_str_to_hours(self, time_str: str) -> float:
         """Преобразует строку времени (HH:MM:SS) в часы"""
@@ -524,26 +551,6 @@ class AutoGraphHistoricalService:
         except:
             return 0.0
 
-    def _parse_numeric_value(self, value):
-        """Парсинг числового значения"""
-        if value is None:
-            return None
-
-        if isinstance(value, (int, float)):
-            return float(value)
-
-        if isinstance(value, str):
-            try:
-                # Убираем запятые, заменяем на точки, удаляем пробелы
-                clean_value = value.replace(',', '.').strip()
-                if clean_value == '':
-                    return None
-                return float(clean_value)
-            except:
-                return None
-
-        return None
-
 
 class AutoGraphDeviceService:
     """Сервис для работы с устройствами AutoGRAPH"""
@@ -556,17 +563,16 @@ class AutoGraphDeviceService:
         self.session.verify = False
         self.session.headers.update({
             'Accept': 'application/json',
-            'User-Agent': 'DeviceService/1.0'
+            'User-Agent': 'DeviceService/2.0'
         })
 
     def get_devices(self, schema_id: str) -> List[Dict]:
         """Получение списка устройств"""
         try:
             if not self.token or not schema_id:
-                logger.error("Нет токена или ID схемя")
+                logger.error("Нет токена или ID схемы")
                 return []
 
-            # Запрос устройств через EnumDevices
             devices_url = f"{self.BASE_URL}/EnumDevices"
             params = {
                 'session': self.token,
@@ -582,7 +588,6 @@ class AutoGraphDeviceService:
 
             devices_data = response.json()
 
-            # Обработка ответа
             devices = []
 
             if isinstance(devices_data, dict) and 'Items' in devices_data:
@@ -620,105 +625,3 @@ class AutoGraphDeviceService:
         except Exception as e:
             logger.error(f"Ошибка получения устройств: {e}", exc_info=True)
             return []
-
-    def _get_trip_items_data_all_params(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
-        """Получаем ВСЕ данные через GetTripItems с параметром '*'"""
-        url = f"{self.BASE_URL}/GetTripItems"
-        params = {
-            'session': self.token,
-            'schemaID': self.schema_id,
-            'IDs': ','.join(device_ids),
-            'SD': start_fmt,
-            'ED': end_fmt,
-            'tripSplitterIndex': 0,
-            'tripParams': '*',  # ВСЕ параметры
-            'tripTotalParams': '*'  # Все итоговые параметры
-        }
-
-        try:
-            logger.info(f"Запрос ВСЕХ данных GetTripItems: {len(device_ids)} ТС, период {start_fmt} - {end_fmt}")
-            logger.info(f"Параметры запроса: {params}")
-
-            response = self.session.get(url, params=params, timeout=180)  # Увеличиваем таймаут до 3 минут
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ GetTripItems со всеми параметрами: получено данных для {len(data)} ТС")
-
-                # Логируем информацию о параметрах
-                for device_id, device_data in data.items():
-                    params_list = device_data.get('Params', [])
-                    items = device_data.get('Items', [])
-                    logger.info(f"  ТС {device_id}: {len(params_list)} параметров, {len(items)} записей")
-                    if params_list:
-                        # Логируем первые 10 параметров
-                        sample_params = params_list[:10]
-                        logger.info(f"    Примеры параметров: {', '.join(sample_params)}")
-                        if len(params_list) > 10:
-                            logger.info(f"    ... и еще {len(params_list) - 10} параметров")
-
-                return data
-            else:
-                logger.error(f"❌ GetTripItems со всеми параметрами: HTTP {response.status_code}")
-                logger.error(f"URL: {url}")
-                logger.error(f"Ответ: {response.text[:500]}")
-
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ GetTripItems со всеми параметрами: Таймаут запроса (180 секунд)")
-            return {}
-
-        except Exception as e:
-            logger.error(f"❌ GetTripItems со всеми параметрами ошибка: {e}", exc_info=True)
-
-        return {}
-
-    def _get_trip_items_data_all_params(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
-        """Получаем ВСЕ данные через GetTripItems с параметром '*'"""
-        url = f"{self.BASE_URL}/GetTripItems"
-        params = {
-            'session': self.token,
-            'schemaID': self.schema_id,
-            'IDs': ','.join(device_ids),
-            'SD': start_fmt,
-            'ED': end_fmt,
-            'tripSplitterIndex': 0,
-            'tripParams': '*',  # ВСЕ параметры
-            'tripTotalParams': '*'  # Все итоговые параметры
-        }
-
-        try:
-            logger.info(f"Запрос ВСЕХ данных GetTripItems: {len(device_ids)} ТС, период {start_fmt} - {end_fmt}")
-            logger.info(f"Параметры запроса: {params}")
-
-            response = self.session.get(url, params=params, timeout=180)  # Увеличиваем таймаут до 3 минут
-
-            if response.status_code == 200:
-                data = response.json()
-                logger.info(f"✅ GetTripItems со всеми параметрами: получено данных для {len(data)} ТС")
-
-                # Логируем информацию о параметрах
-                for device_id, device_data in data.items():
-                    params_list = device_data.get('Params', [])
-                    items = device_data.get('Items', [])
-                    logger.info(f"  ТС {device_id}: {len(params_list)} параметров, {len(items)} записей")
-                    if params_list:
-                        # Логируем первые 10 параметров
-                        sample_params = params_list[:10]
-                        logger.info(f"    Примеры параметров: {', '.join(sample_params)}")
-                        if len(params_list) > 10:
-                            logger.info(f"    ... и еще {len(params_list) - 10} параметров")
-
-                return data
-            else:
-                logger.error(f"❌ GetTripItems со всеми параметрами: HTTP {response.status_code}")
-                logger.error(f"URL: {url}")
-                logger.error(f"Ответ: {response.text[:500]}")
-
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ GetTripItems со всеми параметрами: Таймаут запроса (180 секунд)")
-            return {}
-
-        except Exception as e:
-            logger.error(f"❌ GetTripItems со всеми параметрами ошибка: {e}", exc_info=True)
-
-        return {}

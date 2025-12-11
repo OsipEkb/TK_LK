@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block page_title %}Анализ исторических данных ТС{% endblock %}
+{% block page_title %}Анализ данных ТС{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vehicles/css/vehicles.css' %}">
+{% endblock %}
 
 {% block body_class %}vehicles-container{% endblock %}
 
@@ -9,54 +14,39 @@
     <!-- Заголовок -->
     <div class="vehicles-header mb-4">
         <div class="header-glow"></div>
-        <div class="container-fluid header-content">
+        <div class="container-fluid header-content py-3">
             <div class="row align-items-center">
                 <div class="col-lg-8">
                     <div class="d-flex align-items-center">
-                        <div class="header-icon-wrapper me-4">
+                        <div class="header-icon-wrapper me-3">
                             <i class="fas fa-chart-network fa-2x text-gold"></i>
                         </div>
                         <div>
-                            <h1 class="h1 mb-2 fw-bold text-light">Анализ исторических данных ТС</h1>
+                            <h1 class="h2 mb-2 fw-bold text-light">Анализ данных ТС</h1>
                             <div class="d-flex align-items-center gap-3">
-                                <span class="badge bg-gold text-dark">
+                                <span class="header-badge">
                                     <i class="fas fa-plug me-1"></i> AutoGRAPH Активно
                                 </span>
                                 <span class="text-light opacity-75">
                                     <i class="fas fa-user me-1"></i> {{ autograph_username|default:"Система" }}
                                 </span>
-                                <span class="text-light opacity-75">
-                                    <i class="fas fa-database me-1"></i> {{ schema_name|default:"AutoGRAPH" }}
-                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-4 text-end">
-                    <button class="btn btn-gold" onclick="analyzer.loadData()">
-                        <i class="fas fa-sync-alt me-2"></i>Обновить данные
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <button class="btn btn-gold me-2" onclick="analyzer.loadData()" id="loadDataBtn">
+                        <i class="fas fa-sync-alt me-2"></i>Загрузить
+                    </button>
+                    <button class="btn btn-outline-gold" onclick="analyzer.showPresets()">
+                        <i class="fas fa-sliders-h me-2"></i>Шаблоны
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="container-fluid py-4">
-        <!-- Информационная панель -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="info-panel">
-                    <div class="info-icon">
-                        <i class="fas fa-info-circle"></i>
-                    </div>
-                    <div class="info-content">
-                        <strong>Анализ данных:</strong> Система для работы с сырыми данными из AutoGRAPH.
-                        Используйте вкладки для анализа работы транспортных средств.
-                    </div>
-                </div>
-            </div>
-        </div>
-
+    <div class="container-fluid py-3">
         <div class="row g-4">
             <!-- Левая панель -->
             <div class="col-lg-3">
@@ -68,7 +58,9 @@
                             Транспортные средства
                             <span class="badge bg-gold text-dark ms-2" id="selectedCount">0</span>
                         </h5>
-                        <div class="input-group input-group-sm mt-2">
+                    </div>
+                    <div class="panel-body">
+                        <div class="input-group input-group-sm mb-3">
                             <span class="input-group-text bg-dark border-secondary text-light">
                                 <i class="fas fa-search"></i>
                             </span>
@@ -76,8 +68,7 @@
                                    placeholder="Поиск ТС..." id="vehicleSearch"
                                    onkeyup="analyzer.searchVehicles(this.value)">
                         </div>
-                    </div>
-                    <div class="panel-body" style="height: 300px; overflow-y: auto;">
+
                         <div class="btn-group w-100 mb-3">
                             <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.selectAllVehicles()">
                                 <i class="fas fa-check-double me-1"></i> Все
@@ -119,42 +110,38 @@
                         </div>
 
                         <div class="btn-group w-100 mb-3">
-                            <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.setPeriod(1)">День</button>
-                            <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.setPeriod(7)">Неделя</button>
-                            <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.setPeriod(30)">Месяц</button>
+                            <button class="btn btn-dark-custom flex-grow-1 period-btn" data-days="1">День</button>
+                            <button class="btn btn-dark-custom flex-grow-1 period-btn" data-days="7">Неделя</button>
+                            <button class="btn btn-dark-custom flex-grow-1 period-btn active" data-days="30">Месяц</button>
                         </div>
-
-                        <button class="btn btn-gold w-100" id="loadDataBtn" onclick="analyzer.loadData()" disabled>
-                            <i class="fas fa-database me-2"></i>
-                            Загрузить данные
-                        </button>
                     </div>
                 </div>
 
-                <!-- Статистика данных -->
-                <div class="control-panel">
+                <!-- Шаблоны отчетов -->
+                <div class="control-panel mb-4">
                     <div class="panel-header">
                         <h5 class="panel-title">
-                            <i class="fas fa-chart-bar"></i>
-                            Статистика
+                            <i class="fas fa-file-alt"></i>
+                            Шаблоны отчетов
                         </h5>
                     </div>
                     <div class="panel-body">
-                        <div class="stats-item">
-                            <div class="stats-label">Записей:</div>
-                            <div class="stats-value" id="statsRecords">0</div>
-                        </div>
-                        <div class="stats-item">
-                            <div class="stats-label">Параметров:</div>
-                            <div class="stats-value" id="statsParams">0</div>
-                        </div>
-                        <div class="stats-item">
-                            <div class="stats-label">ТС в данных:</div>
-                            <div class="stats-value" id="statsVehicles">0</div>
-                        </div>
-                        <div class="stats-item">
-                            <div class="stats-label">Период:</div>
-                            <div class="stats-value" id="statsPeriod">—</div>
+                        <div class="btn-group-vertical w-100">
+                            <button class="btn btn-dark-custom text-start mb-2" onclick="analyzer.applyPreset('fuel')">
+                                <i class="fas fa-gas-pump me-2"></i>Расход топлива
+                            </button>
+                            <button class="btn btn-dark-custom text-start mb-2" onclick="analyzer.applyPreset('mileage')">
+                                <i class="fas fa-route me-2"></i>Пробег и движение
+                            </button>
+                            <button class="btn btn-dark-custom text-start mb-2" onclick="analyzer.applyPreset('safety')">
+                                <i class="fas fa-shield-alt me-2"></i>Безопасность
+                            </button>
+                            <button class="btn btn-dark-custom text-start mb-2" onclick="analyzer.applyPreset('engine')">
+                                <i class="fas fa-cogs me-2"></i>Двигатель
+                            </button>
+                            <button class="btn btn-dark-custom text-start" onclick="analyzer.applyPreset('all')">
+                                <i class="fas fa-chart-bar me-2"></i>Все показатели
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -162,234 +149,229 @@
 
             <!-- Центральная панель -->
             <div class="col-lg-9">
-                <!-- Вкладки -->
-                <div class="tabs-container mb-4">
-                    <div class="tabs-header">
-                        <button class="tab-btn active" data-tab="rawdata">
-                            <i class="fas fa-database me-2"></i> Сырые данные
-                        </button>
+                <!-- Плеер данных -->
+                <div class="data-player d-none" id="playerSection">
+                    <div class="player-header">
+                        <div class="player-title">
+                            <i class="fas fa-play-circle"></i>
+                            Плеер данных
+                        </div>
+                        <div class="player-speed">
+                            <label class="text-light small me-2">Скорость:</label>
+                            <select class="form-select form-select-sm bg-dark border-secondary text-light" id="playerSpeed">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="2">2x</option>
+                                <option value="4">4x</option>
+                                <option value="8">8x</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <!-- Вкладка Сырые данные -->
-                    <div class="tab-content active" id="rawdataTab">
-                        <div class="raw-data-container">
-                            <!-- Основная информация -->
-                            <div class="row mb-4">
-                                <div class="col-md-12">
-                                    <div class="info-panel info-small">
-                                        <div class="info-content">
-                                            <div class="row">
-                                                <div class="col-md-3">
-                                                    <small class="text-muted">Пробег (км):</small>
-                                                    <div id="rawDataDistance">0</div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <small class="text-muted">Расход (л):</small>
-                                                    <div id="rawDataFuel">0</div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <small class="text-muted">Скорость (км/ч):</small>
-                                                    <div id="rawDataSpeed">0</div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <small class="text-muted">Рейтинг (%):</small>
-                                                    <div id="rawDataRating">0</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div class="player-controls">
+                        <button class="player-btn" id="playerPrev" title="Предыдущая запись">
+                            <i class="fas fa-step-backward"></i>
+                        </button>
+                        <button class="player-btn" id="playerPlay" title="Воспроизвести">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="player-btn" id="playerPause" title="Пауза">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button class="player-btn" id="playerStop" title="Стоп">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                        <button class="player-btn" id="playerNext" title="Следующая запись">
+                            <i class="fas fa-step-forward"></i>
+                        </button>
 
-                            <!-- Панель управления графиками -->
-                            <div class="row mb-4">
-                                <div class="col-md-12">
-                                    <div class="card bg-dark border-secondary">
-                                        <div class="card-header">
-                                            <h5 class="mb-0">Настройка графиков</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label class="form-label text-light">Тип графика:</label>
-                                                        <select class="form-control bg-dark border-secondary text-light" id="chartTypeSelect">
-                                                            <option value="line">Линейный</option>
-                                                            <option value="bar">Вертикальные столбцы</option>
-                                                            <option value="barHorizontal">Горизонтальные столбцы</option>
-                                                            <option value="area">Областной</option>
-                                                            <option value="pie">Круговой</option>
-                                                            <option value="doughnut">Кольцевой</option>
-                                                            <option value="radar">Радарный</option>
-                                                            <option value="scatter">Точечный</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label class="form-label text-light">Размер графика:</label>
-                                                        <select class="form-control bg-dark border-secondary text-light" id="chartSizeSelect">
-                                                            <option value="small">Узкий</option>
-                                                            <option value="medium" selected>Средний</option>
-                                                            <option value="large">Широкий</option>
-                                                            <option value="full">Полный</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label class="form-label text-light">Цветовая схема:</label>
-                                                        <select class="form-control bg-dark border-secondary text-light" id="chartColorScheme">
-                                                            <option value="gold">Золотая</option>
-                                                            <option value="blue">Синяя</option>
-                                                            <option value="green">Зеленая</option>
-                                                            <option value="red">Красная</option>
-                                                            <option value="purple">Фиолетовая</option>
-                                                            <option value="rainbow">Радужная</option>
-                                                            <option value="monochrome">Монохром</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label text-light">Временной шаг:</label>
-                                                        <select class="form-control bg-dark border-secondary text-light" id="timeStepSelect">
-                                                            <option value="hour">1 час</option>
-                                                            <option value="3hours">3 часа</option>
-                                                            <option value="6hours">6 часов</option>
-                                                            <option value="9hours">9 часов</option>
-                                                            <option value="12hours">12 часов</option>
-                                                            <option value="day" selected>День</option>
-                                                            <option value="3days">3 дня</option>
-                                                            <option value="week">Неделя</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label text-light">Параметры для графика:</label>
-                                                        <select class="form-control bg-dark border-secondary text-light" id="chartParamsSelect" multiple>
-                                                            <!-- Заполнится через JS -->
-                                                        </select>
-                                                        <small class="text-muted">Удерживайте Ctrl для выбора нескольких параметров</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-12 text-end">
-                                                    <button class="btn btn-gold" onclick="analyzer.createChart()">
-                                                        <i class="fas fa-chart-line me-2"></i>Построить график
-                                                    </button>
-                                                    <button class="btn btn-outline-gold ms-2" onclick="analyzer.resetChartSettings()">
-                                                        <i class="fas fa-redo me-2"></i>Сбросить
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="player-timeline" id="playerTimeline">
+                            <div class="player-progress" id="playerProgress"></div>
+                        </div>
 
-                            <!-- График -->
-                            <div class="row mb-4">
-                                <div class="col-md-12">
-                                    <div class="card bg-dark border-secondary">
-                                        <div class="card-header d-flex justify-content-between align-items-center">
-                                            <h5 class="mb-0">График параметров</h5>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportChart('png')">
-                                                    <i class="fas fa-image me-1"></i>PNG
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportChart('jpg')">
-                                                    <i class="fas fa-file-image me-1"></i>JPG
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="chart-container" id="mainChartContainer">
-                                                <canvas id="mainChart"></canvas>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="player-time" id="playerTime">0 / 0</div>
+                    </div>
 
-                            <!-- Таблица данных -->
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="card bg-dark border-secondary">
-                                        <div class="card-header d-flex justify-content-between align-items-center">
-                                            <h5 class="mb-0">Таблица данных</h5>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportTableData('csv')">
-                                                    <i class="fas fa-file-csv me-1"></i>CSV
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportTableData('excel')">
-                                                    <i class="fas fa-file-excel me-1"></i>Excel
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                                                <table class="table table-dark table-hover mb-0">
-                                                    <thead style="position: sticky; top: 0; background: #1a1a1a;">
-                                                        <tr>
-                                                            <th>#</th>
-                                                            <th>ТС</th>
-                                                            <th>Время</th>
-                                                            <th>Стадия</th>
-                                                            <th>Пробег (км)</th>
-                                                            <th>Расход (л)</th>
-                                                            <th>Скорость (км/ч)</th>
-                                                            <th>Рейтинг (%)</th>
-                                                            <th>Моточасы (ч)</th>
-                                                            <th>Детали</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="rawDataTableBody">
-                                                        <tr>
-                                                            <td colspan="10" class="text-center py-4">
-                                                                <i class="fas fa-database fa-2x text-muted mb-3"></i>
-                                                                <p class="text-muted mb-0">Загрузите данные для просмотра</p>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="player-data">
+                        <div class="data-current-values" id="playerCurrentValues">
+                            <div class="text-center py-3">
+                                <i class="fas fa-database fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">Загрузите данные для просмотра</p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Модальное окно деталей записи -->
-<div class="modal fade" id="recordDetailsModal">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-gold">Детали записи</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Основная информация</h6>
-                        <table class="table table-sm table-dark" id="basicInfoTable">
-                            <!-- Будет заполнено через JS -->
-                        </table>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Все параметры</h6>
-                        <div class="params-details-container" id="paramsDetailsContainer">
-                            <!-- Будет заполнено через JS -->
+                <!-- Секция графиков и таблицы -->
+                <div class="charts-section d-none" id="chartsSection">
+                    <div class="tabs-container">
+                        <div class="tabs-header">
+                            <button class="tab-btn active" data-tab="charts" onclick="analyzer.switchTab('charts')">
+                                <i class="fas fa-chart-line me-2"></i> Графики
+                            </button>
+                            <button class="tab-btn" data-tab="table" onclick="analyzer.switchTab('table')">
+                                <i class="fas fa-table me-2"></i> Таблица данных
+                            </button>
+                            <button class="tab-btn" data-tab="multi" onclick="analyzer.switchTab('multi')">
+                                <i class="fas fa-chart-area me-2"></i> Мультиграфики
+                            </button>
+                        </div>
+
+                        <!-- Вкладка графиков -->
+                        <div class="tab-content active" id="chartsTab">
+                            <div class="mb-4">
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label text-light">Тип графика</label>
+                                            <select class="form-control bg-dark border-secondary text-light" id="chartTypeSelect">
+                                                <option value="line">Линейный</option>
+                                                <option value="bar">Столбчатый</option>
+                                                <option value="area">Областной</option>
+                                                <option value="scatter">Точечный</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label text-light">Параметр</label>
+                                            <select class="form-control bg-dark border-secondary text-light" id="chartParamSelect">
+                                                <option value="">Выберите параметр...</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label class="form-label text-light">Цвет</label>
+                                            <input type="color" class="form-control form-control-color bg-dark border-secondary"
+                                                   id="chartColorSelect" value="#FFD700" title="Выберите цвет линии">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3 d-flex align-items-end h-100">
+                                            <button class="btn btn-gold w-100" onclick="analyzer.addChart()">
+                                                <i class="fas fa-plus me-2"></i>Добавить график
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Активные графики -->
+                            <div class="active-charts mb-4" id="activeCharts">
+                                <!-- Графики будут добавляться динамически -->
+                            </div>
+
+                            <!-- Основной график -->
+                            <div class="chart-wrapper">
+                                <div class="chart-controls">
+                                    <div class="chart-zoom-controls">
+                                        <button class="zoom-btn" id="chartZoomOut" title="Уменьшить">
+                                            <i class="fas fa-search-minus"></i>
+                                        </button>
+                                        <input type="range" class="form-range" id="chartZoomSlider" min="1" max="100" value="100">
+                                        <button class="zoom-btn" id="chartZoomIn" title="Увеличить">
+                                            <i class="fas fa-search-plus"></i>
+                                        </button>
+                                        <span class="time-marker ms-3" id="chartRangeInfo">Загрузка данных...</span>
+                                    </div>
+                                    <div class="chart-time-range">
+                                        <button class="zoom-btn" id="chartPrev" title="Предыдущие данные">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                        <input type="range" class="form-range" id="chartRangeSlider" min="0" max="100" value="0">
+                                        <button class="zoom-btn" id="chartNext" title="Следующие данные">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="chart-container">
+                                    <canvas id="mainChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Вкладка мультиграфиков -->
+                        <div class="tab-content" id="multiTab">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="text-gold mb-0">Мультиграфики</h5>
+                                    <div>
+                                        <button class="btn btn-outline-gold btn-sm me-2" onclick="analyzer.addMultiChart()">
+                                            <i class="fas fa-plus me-1"></i>Новый график
+                                        </button>
+                                        <button class="btn btn-outline-gold btn-sm" onclick="analyzer.clearAllCharts()">
+                                            <i class="fas fa-trash me-1"></i>Очистить все
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="text-muted mb-0">Создавайте несколько графиков с разными параметрами на одном экране</p>
+                            </div>
+
+                            <div class="multi-charts-container" id="multiChartsContainer">
+                                <div class="text-center py-5">
+                                    <i class="fas fa-chart-area fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-gold mb-2">Нет активных графиков</h5>
+                                    <p class="text-muted mb-0">Добавьте первый график с помощью кнопки "Новый график"</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Вкладка таблицы -->
+                        <div class="tab-content" id="tableTab">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="text-gold mb-0">Таблица данных</h5>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="showAllDataSwitch" checked>
+                                            <label class="form-check-label text-light small" for="showAllDataSwitch">
+                                                Показать все записи
+                                            </label>
+                                        </div>
+                                        <div class="btn-group">
+                                            <button class="btn btn-outline-gold btn-sm" onclick="analyzer.exportData('csv')" id="exportCsvBtn">
+                                                <i class="fas fa-file-csv me-1"></i>CSV
+                                            </button>
+                                            <button class="btn btn-outline-gold btn-sm" onclick="analyzer.exportData('json')" id="exportJsonBtn">
+                                                <i class="fas fa-file-code me-1"></i>JSON
+                                            </button>
+                                            <button class="btn btn-outline-gold btn-sm" onclick="analyzer.exportData('excel')" id="exportExcelBtn">
+                                                <i class="fas fa-file-excel me-1"></i>Excel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="data-table-container">
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ТС</th>
+                                                <th>Дата и время</th>
+                                                <th class="text-end">Пробег (км)</th>
+                                                <th class="text-end">Скорость (км/ч)</th>
+                                                <th class="text-end">Расход (л)</th>
+                                                <th class="text-end">Рейтинг (%)</th>
+                                                <th class="text-end">Моточасы (ч)</th>
+                                                <th class="text-end">Движение (ч)</th>
+                                                <th class="text-end">Стоянка (ч)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dataTableBody">
+                                            <tr>
+                                                <td colspan="9" class="text-center py-4">
+                                                    <i class="fas fa-database fa-2x text-muted mb-3"></i>
+                                                    <p class="text-muted mb-0">Загрузите данные для просмотра</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -412,1542 +394,46 @@
 
 <!-- Контейнер для уведомлений -->
 <div id="notificationContainer" class="notification-container"></div>
+
+<!-- Модальное окно выбора цвета -->
+<div class="modal fade" id="colorPickerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-gold">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-gold">Выбор цвета параметра</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="color-picker-grid" id="colorPickerGrid">
+                    <!-- Цвета будут добавлены динамически -->
+                </div>
+                <div class="mt-3">
+                    <input type="color" class="form-control form-control-color" id="customColorPicker" value="#FFD700">
+                    <label class="form-label text-light mt-2">Пользовательский цвет</label>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-gold" onclick="analyzer.applySelectedColor()">Применить</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="{% static 'vehicles/js/vehicles.js' %}"></script>
+
 <script>
-// ============================================
-// VehicleAnalyzer - Анализатор данных ТС
-// ============================================
-class VehicleAnalyzer {
-    constructor() {
-        this.vehicles = [];
-        this.filteredVehicles = [];
-        this.selectedVehicles = [];
-        this.rawData = null;
-        this.chart = null;
-        this.currentChartData = null;
-
-        // Цветовые схемы
-        this.colorSchemes = {
-            gold: [
-                '#FFD700', '#FFED4E', '#D4AF37', '#B8860B', '#FFA500',
-                '#F0C420', '#E6B800', '#CFB53B', '#C5B358', '#B29700'
-            ],
-            blue: [
-                '#3498db', '#2980b9', '#1f6394', '#15486f', '#0a2d4a',
-                '#5dade2', '#2e86c1', '#1b4f72', '#0e3a5c', '#082947'
-            ],
-            green: [
-                '#2ecc71', '#27ae60', '#1e8449', '#145a32', '#0a301b',
-                '#52be80', '#229954', '#196f3d', '#0e4d2a', '#073018'
-            ],
-            red: [
-                '#e74c3c', '#c0392b', '#a93226', '#7b241c', '#4d160f',
-                '#ec7063', '#cb4335', '#a93226', '#78281f', '#4a1c13'
-            ],
-            purple: [
-                '#9b59b6', '#8e44ad', '#7d3c98', '#6c3483', '#5b2c6f',
-                '#af7ac5', '#9b59b6', '#884ea0', '#76448a', '#633974'
-            ],
-            rainbow: [
-                '#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF',
-                '#4B0082', '#8B00FF', '#FF1493', '#00CED1', '#32CD32'
-            ],
-            monochrome: [
-                '#FFFFFF', '#CCCCCC', '#999999', '#666666', '#333333',
-                '#E6E6E6', '#B3B3B3', '#808080', '#4D4D4D', '#1A1A1A'
-            ]
-        };
-    }
-
-    // ============================================
-    // ИНИЦИАЛИЗАЦИЯ
-    // ============================================
-    async init() {
-        console.log('🚀 Инициализация анализатора ТС');
-
-        try {
-            await this.loadVehicles();
-            this.setupEventListeners();
-            this.showNotification('Система готова к работе', 'info');
-
-        } catch (error) {
-            console.error('Ошибка инициализации:', error);
-            this.showNotification('Ошибка инициализации: ' + error.message, 'error');
-        }
-    }
-
-    // ============================================
-    // ЗАГРУЗКА ДАННЫХ
-    // ============================================
-    async loadVehicles() {
-        this.showLoading('Загрузка ТС', 'Получение списка транспортных средств...');
-
-        try {
-            const response = await fetch('/vehicles/api/get-vehicles/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCsrfToken()
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ошибка ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                this.vehicles = data.data.vehicles || [];
-                this.filteredVehicles = [...this.vehicles];
-                console.log(`✅ Загружено ТС: ${this.vehicles.length}`);
-                this.renderVehiclesList();
-                this.showNotification(`Загружено ${this.vehicles.length} ТС`, 'success');
-            } else {
-                throw new Error(data.error || 'Ошибка загрузки ТС');
-            }
-
-        } catch (error) {
-            console.error('❌ Ошибка загрузки ТС:', error);
-            this.showNotification('Ошибка загрузки ТС: ' + error.message, 'error');
-
-        } finally {
-            this.hideLoading();
-        }
-    }
-
-    async loadData() {
-        if (this.selectedVehicles.length === 0) {
-            this.showNotification('Выберите хотя бы одно ТС', 'warning');
-            return;
-        }
-
-        const startDate = document.getElementById('dateFrom').value;
-        const endDate = document.getElementById('dateTo').value;
-
-        if (!startDate || !endDate) {
-            this.showNotification('Укажите период анализа', 'warning');
-            return;
-        }
-
-        try {
-            this.showLoading('Загрузка данных', 'Получение данных из AutoGRAPH...');
-            this.updateProgress(30, 'Отправка запроса...');
-
-            const response = await fetch('/vehicles/api/get-raw-data-table/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCsrfToken()
-                },
-                body: JSON.stringify({
-                    vehicle_ids: this.selectedVehicles,
-                    start_date: startDate,
-                    end_date: endDate
-                })
-            });
-
-            this.updateProgress(60, 'Обработка данных...');
-
-            if (!response.ok) {
-                throw new Error(`HTTP ошибка: ${response.status}`);
-            }
-
-            const data = await response.json();
-            this.updateProgress(90, 'Форматирование данных...');
-
-            if (data.success) {
-                this.rawData = data.data;
-                this.renderData();
-                this.showNotification(`Загружено ${data.data.summary?.total_records || 0} записей`, 'success');
-
-            } else {
-                throw new Error(data.error || 'Ошибка загрузки данных');
-            }
-
-        } catch (error) {
-            console.error('❌ Ошибка загрузки данных:', error);
-            this.showNotification('Ошибка: ' + error.message, 'error');
-        } finally {
-            this.updateProgress(100, 'Завершено');
-            setTimeout(() => this.hideLoading(), 1000);
-        }
-    }
-
-    // ============================================
-    // ОТОБРАЖЕНИЕ ДАННЫХ
-    // ============================================
-    renderData() {
-        if (!this.rawData) return;
-
-        const summary = this.rawData.summary || {};
-        const tableData = this.rawData.table_data || {};
-        const paramGroups = this.rawData.parameter_groups || {};
-
-        // Обновляем статистику
-        this.updateStatistics(summary);
-
-        // Обновляем основную информацию
-        this.updateMainInfo();
-
-        // Заполняем выбор параметров для графиков
-        this.populateChartParams(paramGroups);
-
-        // Показываем данные первого ТС
-        if (tableData.vehicles && Object.keys(tableData.vehicles).length > 0) {
-            const firstVehicleId = Object.keys(tableData.vehicles)[0];
-            this.renderVehicleTableData(firstVehicleId);
-        }
-    }
-
-    updateStatistics(summary) {
-        const recordsEl = document.getElementById('statsRecords');
-        const paramsEl = document.getElementById('statsParams');
-        const vehiclesEl = document.getElementById('statsVehicles');
-        const periodEl = document.getElementById('statsPeriod');
-
-        if (recordsEl) recordsEl.textContent = (summary.total_records || 0).toLocaleString('ru-RU');
-        if (paramsEl) paramsEl.textContent = summary.total_parameters || 0;
-        if (vehiclesEl) vehiclesEl.textContent = summary.vehicle_count || 0;
-        if (periodEl) periodEl.textContent = summary.period?.start ?
-            `${summary.period.start} - ${summary.period.end}` : '—';
-    }
-
-    updateMainInfo() {
-        if (!this.rawData || !this.rawData.table_data?.vehicles) return;
-
-        let totalDistance = 0;
-        let totalFuel = 0;
-        let totalSpeed = 0;
-        let totalRating = 0;
-        let count = 0;
-
-        Object.values(this.rawData.table_data.vehicles).forEach(vehicleData => {
-            (vehicleData.samples || []).forEach(item => {
-                const distance = this.getNumericValue(item.Values, ['TotalDistance', 'Distance', 'Odometer']);
-                const fuel = this.getNumericValue(item.Values, ['Engine1FuelConsum', 'FuelConsumption', 'Fuel']);
-                const speed = this.getNumericValue(item.Values, ['Speed', 'AverageSpeed', 'MaxSpeed']);
-                const rating = this.getNumericValue(item.Values, ['DQRating', 'Rating']);
-
-                if (distance !== null) totalDistance += distance;
-                if (fuel !== null) totalFuel += fuel;
-                if (speed !== null) {
-                    totalSpeed += speed;
-                    count++;
-                }
-                if (rating !== null) totalRating += rating;
-            });
-        });
-
-        const distanceEl = document.getElementById('rawDataDistance');
-        const fuelEl = document.getElementById('rawDataFuel');
-        const speedEl = document.getElementById('rawDataSpeed');
-        const ratingEl = document.getElementById('rawDataRating');
-
-        if (distanceEl) distanceEl.textContent = this.formatNumber(totalDistance, 1);
-        if (fuelEl) fuelEl.textContent = this.formatNumber(totalFuel, 1);
-        if (speedEl) speedEl.textContent = count > 0 ? this.formatNumber(totalSpeed / count, 1) : '0';
-        if (ratingEl) ratingEl.textContent = count > 0 ? this.formatNumber(totalRating / count, 1) : '0';
-    }
-
-    populateChartParams(paramGroups) {
-        const select = document.getElementById('chartParamsSelect');
-        if (!select) return;
-
-        let html = '';
-
-        for (const [groupId, groupData] of Object.entries(paramGroups)) {
-            (groupData.params || []).forEach(param => {
-                html += `<option value="${param.api_name || param.id}">${groupData.name}: ${param.display_name || param.name}</option>`;
-            });
-        }
-
-        select.innerHTML = html;
-    }
-
-    renderVehicleTableData(vehicleId = null) {
-        if (!vehicleId) return;
-
-        if (!this.rawData || !this.rawData.table_data?.vehicles?.[vehicleId]) {
-            return;
-        }
-
-        const vehicleData = this.rawData.table_data.vehicles[vehicleId];
-
-        // Заполняем таблицу
-        const tbody = document.getElementById('rawDataTableBody');
-        if (!tbody) return;
-
-        if (!vehicleData.samples || vehicleData.samples.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="10" class="text-center py-4">
-                        <i class="fas fa-database fa-2x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">Нет данных для отображения</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        let html = '';
-
-        vehicleData.samples.forEach((item, index) => {
-            const speed = this.getParamValue(item.Values, ['Speed', 'AverageSpeed', 'MaxSpeed']);
-            const fuel = this.getParamValue(item.Values, ['Engine1FuelConsum', 'FuelConsumption', 'Fuel']);
-            const distance = this.getParamValue(item.Values, ['TotalDistance', 'Distance', 'Odometer']);
-            const rating = this.getParamValue(item.Values, ['DQRating', 'Rating']);
-            const hours = this.getParamValue(item.Values, ['Engine1Motohours', 'TotalDuration', 'MoveDuration']);
-
-            html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${vehicleData.name}</td>
-                    <td>${this.formatDateTime(item.DT)}</td>
-                    <td><span class="badge bg-secondary">${item.Stage || '—'}</span></td>
-                    <td>${distance}</td>
-                    <td>${fuel}</td>
-                    <td>${speed}</td>
-                    <td>${rating}</td>
-                    <td>${hours}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-gold"
-                                onclick="analyzer.showRecordDetails('${vehicleId}', ${index})">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-
-        tbody.innerHTML = html;
-    }
-
-    // ============================================
-    // ГРАФИКИ
-    // ============================================
-    createChart() {
-        if (!this.rawData) {
-            this.showNotification('Сначала загрузите данные', 'warning');
-            return;
-        }
-
-        const paramsSelect = document.getElementById('chartParamsSelect');
-        if (!paramsSelect) return;
-
-        const selectedParams = Array.from(paramsSelect.selectedOptions)
-            .map(opt => opt.value);
-
-        if (selectedParams.length === 0) {
-            this.showNotification('Выберите хотя бы один параметр для графика', 'warning');
-            return;
-        }
-
-        const chartType = document.getElementById('chartTypeSelect').value;
-        const chartSize = document.getElementById('chartSizeSelect').value;
-        const colorScheme = document.getElementById('chartColorScheme').value;
-        const timeStep = document.getElementById('timeStepSelect').value;
-
-        // Подготавливаем данные для графика
-        const chartData = this.prepareChartData(selectedParams, timeStep);
-
-        if (!chartData || chartData.labels.length === 0) {
-            this.showNotification('Нет данных для построения графика', 'warning');
-            return;
-        }
-
-        // Настраиваем размер контейнера
-        this.setChartSize(chartSize);
-
-        // Создаем график
-        this.renderChart(chartType, chartData, colorScheme);
-    }
-
-    prepareChartData(params, timeStep) {
-        if (!this.rawData || !this.rawData.table_data?.vehicles) return null;
-
-        const vehicles = this.rawData.table_data.vehicles;
-        const chartData = {
-            labels: [],
-            datasets: []
-        };
-
-        // Собираем все временные метки
-        const allTimes = new Set();
-        Object.values(vehicles).forEach(vehicleData => {
-            (vehicleData.samples || []).forEach(item => {
-                if (item.DT) {
-                    const timeGroup = this.groupTimeByStep(item.DT, timeStep);
-                    allTimes.add(timeGroup);
-                }
-            });
-        });
-
-        // Сортируем временные метки
-        chartData.labels = Array.from(allTimes).sort();
-
-        // Для каждого параметра создаем набор данных
-        params.forEach((param, paramIndex) => {
-            const paramData = this.prepareParamData(param, chartData.labels, timeStep);
-
-            if (paramData && paramData.length > 0) {
-                const colors = this.getColorScheme(paramIndex);
-
-                chartData.datasets.push({
-                    label: param,
-                    data: paramData,
-                    backgroundColor: this.getBackgroundColor(chartData.labels.length, colors.primary),
-                    borderColor: colors.border,
-                    borderWidth: 2,
-                    fill: document.getElementById('chartTypeSelect').value === 'area',
-                    tension: 0.3
-                });
-            }
-        });
-
-        return chartData;
-    }
-
-    prepareParamData(param, labels, timeStep) {
-        if (!this.rawData || !this.rawData.table_data?.vehicles) return [];
-
-        const vehicles = this.rawData.table_data.vehicles;
-        const paramData = new Array(labels.length).fill(0);
-        const counts = new Array(labels.length).fill(0);
-
-        Object.values(vehicles).forEach(vehicleData => {
-            (vehicleData.samples || []).forEach(item => {
-                if (item.Values && item.Values[param] !== undefined && item.DT) {
-                    const timeGroup = this.groupTimeByStep(item.DT, timeStep);
-                    const index = labels.indexOf(timeGroup);
-
-                    if (index !== -1) {
-                        const value = parseFloat(item.Values[param]);
-                        if (!isNaN(value)) {
-                            paramData[index] += value;
-                            counts[index]++;
-                        }
-                    }
-                }
-            });
-        });
-
-        // Вычисляем средние значения
-        return paramData.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
-    }
-
-    groupTimeByStep(dt, step) {
-        if (!dt) return '';
-
-        try {
-            const date = new Date(dt);
-
-            switch(step) {
-                case 'hour':
-                    return date.toISOString().slice(0, 13) + ':00';
-                case '3hours':
-                    const hour3 = Math.floor(date.getHours() / 3) * 3;
-                    return `${date.toISOString().slice(0, 10)} ${hour3.toString().padStart(2, '0')}:00`;
-                case '6hours':
-                    const hour6 = Math.floor(date.getHours() / 6) * 6;
-                    return `${date.toISOString().slice(0, 10)} ${hour6.toString().padStart(2, '0')}:00`;
-                case '9hours':
-                    const hour9 = Math.floor(date.getHours() / 9) * 9;
-                    return `${date.toISOString().slice(0, 10)} ${hour9.toString().padStart(2, '0')}:00`;
-                case '12hours':
-                    const hour12 = Math.floor(date.getHours() / 12) * 12;
-                    return `${date.toISOString().slice(0, 10)} ${hour12.toString().padStart(2, '0')}:00`;
-                case 'day':
-                    return date.toISOString().slice(0, 10);
-                case '3days':
-                    const day3 = Math.floor(date.getDate() / 3) * 3;
-                    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${day3.toString().padStart(2, '0')}`;
-                case 'week':
-                    const weekStart = new Date(date);
-                    weekStart.setDate(date.getDate() - date.getDay());
-                    return weekStart.toISOString().slice(0, 10);
-                default:
-                    return date.toISOString().slice(0, 10);
-            }
-        } catch (e) {
-            return dt.slice(0, 10); // Возвращаем первые 10 символов если не удалось распарсить
-        }
-    }
-
-    setChartSize(size) {
-        const container = document.getElementById('mainChartContainer');
-        if (!container) return;
-
-        switch(size) {
-            case 'small':
-                container.style.height = '300px';
-                break;
-            case 'medium':
-                container.style.height = '400px';
-                break;
-            case 'large':
-                container.style.height = '500px';
-                break;
-            case 'full':
-                container.style.height = '600px';
-                break;
-        }
-    }
-
-    getColorScheme(index) {
-        const schemeName = document.getElementById('chartColorScheme')?.value || 'gold';
-        const scheme = this.colorSchemes[schemeName] || this.colorSchemes.gold;
-
-        const colorIndex = index % scheme.length;
-        return {
-            primary: scheme[colorIndex],
-            border: scheme[colorIndex]
-        };
-    }
-
-    getBackgroundColor(count, baseColor) {
-        const chartType = document.getElementById('chartTypeSelect')?.value || 'line';
-
-        if (chartType === 'pie' || chartType === 'doughnut') {
-            // Для круговых диаграмм нужны разные цвета для каждого сегмента
-            const schemeName = document.getElementById('chartColorScheme')?.value || 'gold';
-            const scheme = this.colorSchemes[schemeName] || this.colorSchemes.gold;
-
-            const colors = [];
-            for (let i = 0; i < count; i++) {
-                colors.push(scheme[i % scheme.length]);
-            }
-            return colors;
-        } else {
-            // Для остальных типов - один цвет с прозрачностью
-            return baseColor + '40'; // 25% прозрачность
-        }
-    }
-
-    renderChart(type, data, colorScheme) {
-        const canvas = document.getElementById('mainChart');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-
-        // Уничтожаем предыдущий график
-        if (this.chart) {
-            this.chart.destroy();
-        }
-
-        // Настраиваем тип графика
-        let chartType = type;
-        if (type === 'barHorizontal') {
-            chartType = 'bar';
-        }
-
-        // Настройки для разных типов графиков
-        const options = this.getChartOptions(type, colorScheme);
-
-        // Создаем график
-        try {
-            this.chart = new Chart(ctx, {
-                type: chartType,
-                data: data,
-                options: options
-            });
-
-            this.currentChartData = { type, data, colorScheme };
-            this.showNotification('График построен', 'success');
-        } catch (error) {
-            console.error('Ошибка создания графика:', error);
-            this.showNotification('Ошибка создания графика: ' + error.message, 'error');
-        }
-    }
-
-    getChartOptions(type, colorScheme) {
-        const isHorizontal = type === 'barHorizontal';
-        const isCircular = type === 'pie' || type === 'doughnut';
-        const isRadar = type === 'radar';
-
-        const baseOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Анализ параметров ТС',
-                    color: '#FFD700',
-                    font: { size: 16, weight: 'bold' }
-                },
-                legend: {
-                    labels: {
-                        color: '#FFFFFF',
-                        font: { size: 12 }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#FFD700',
-                    bodyColor: '#FFFFFF',
-                    borderColor: '#FFD700',
-                    borderWidth: 1
-                }
-            }
-        };
-
-        if (isCircular || isRadar) {
-            return baseOptions;
-        }
-
-        return {
-            ...baseOptions,
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                    ticks: { color: '#CCCCCC' },
-                    title: {
-                        display: isHorizontal,
-                        text: 'Значение',
-                        color: '#CCCCCC'
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                    ticks: { color: '#CCCCCC' },
-                    title: {
-                        display: !isHorizontal,
-                        text: 'Значение',
-                        color: '#CCCCCC'
-                    }
-                }
-            }
-        };
-    }
-
-    resetChartSettings() {
-        document.getElementById('chartTypeSelect').value = 'line';
-        document.getElementById('chartSizeSelect').value = 'medium';
-        document.getElementById('chartColorScheme').value = 'gold';
-        document.getElementById('timeStepSelect').value = 'day';
-
-        const paramsSelect = document.getElementById('chartParamsSelect');
-        if (paramsSelect) {
-            Array.from(paramsSelect.options).forEach(option => {
-                option.selected = false;
-            });
-        }
-
-        if (this.chart) {
-            this.chart.destroy();
-            this.chart = null;
-        }
-
-        this.showNotification('Настройки графика сброшены', 'info');
-    }
-
-    exportChart(format) {
-        if (!this.chart) {
-            this.showNotification('Сначала постройте график', 'warning');
-            return;
-        }
-
-        try {
-            const link = document.createElement('a');
-            link.download = `график-${new Date().toISOString().slice(0,10)}.${format}`;
-            link.href = this.chart.toBase64Image();
-            link.click();
-
-            this.showNotification('График экспортирован', 'success');
-        } catch (error) {
-            console.error('Ошибка экспорта графика:', error);
-            this.showNotification('Ошибка экспорта графика', 'error');
-        }
-    }
-
-    // ============================================
-    // ЭКСПОРТ ДАННЫХ
-    // ============================================
-    exportTableData(format) {
-        if (!this.rawData) {
-            this.showNotification('Нет данных для экспорта', 'warning');
-            return;
-        }
-
-        let data, filename, mimeType;
-
-        if (format === 'csv') {
-            data = this.convertToCSV();
-            filename = `данные-тс-${new Date().toISOString().slice(0,10)}.csv`;
-            mimeType = 'text/csv;charset=utf-8;';
-        } else if (format === 'excel') {
-            data = this.convertToCSV();
-            filename = `данные-тс-${new Date().toISOString().slice(0,10)}.xls`;
-            mimeType = 'application/vnd.ms-excel';
-        } else {
-            return;
-        }
-
-        try {
-            const blob = new Blob([data], { type: mimeType });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-
-            this.showNotification('Данные экспортированы', 'success');
-        } catch (error) {
-            console.error('Ошибка экспорта данных:', error);
-            this.showNotification('Ошибка экспорта данных', 'error');
-        }
-    }
-
-    convertToCSV() {
-        if (!this.rawData || !this.rawData.table_data?.vehicles) return '';
-
-        let csv = 'ТС;Время;Стадия;Длительность;';
-
-        // Собираем все уникальные параметры
-        const allParams = new Set();
-        Object.values(this.rawData.table_data.vehicles).forEach(vehicleData => {
-            (vehicleData.samples || []).forEach(item => {
-                if (item.Values) {
-                    Object.keys(item.Values).forEach(param => {
-                        allParams.add(param);
-                    });
-                }
-            });
-        });
-
-        const paramsArray = Array.from(allParams);
-        csv += paramsArray.join(';') + '\n';
-
-        // Добавляем данные
-        Object.entries(this.rawData.table_data.vehicles).forEach(([vehicleId, vehicleData]) => {
-            (vehicleData.samples || []).forEach(item => {
-                const row = [
-                    vehicleData.name || '',
-                    `"${item.DT || ''}"`,
-                    `"${item.Stage || ''}"`,
-                    `"${item.Duration || ''}"`
-                ];
-
-                paramsArray.forEach(param => {
-                    let value = item.Values?.[param] || '';
-                    if (typeof value === 'string') {
-                        value = value.replace(/"/g, '""');
-                        if (value.includes(';') || value.includes('"')) {
-                            value = `"${value}"`;
-                        }
-                    }
-                    row.push(value);
-                });
-
-                csv += row.join(';') + '\n';
-            });
-        });
-
-        return csv;
-    }
-
-    // ============================================
-    // ДЕТАЛИ ЗАПИСИ
-    // ============================================
-    showRecordDetails(vehicleId, itemIndex) {
-        if (!this.rawData || !this.rawData.table_data?.vehicles?.[vehicleId]) {
-            return;
-        }
-
-        const vehicleData = this.rawData.table_data.vehicles[vehicleId];
-        const item = vehicleData.samples?.[itemIndex];
-
-        if (!item) return;
-
-        // Заполняем основную информацию
-        const basicInfoTable = document.getElementById('basicInfoTable');
-        if (basicInfoTable) {
-            basicInfoTable.innerHTML = `
-                <tr><td>ТС:</td><td class="text-gold">${vehicleData.name || ''}</td></tr>
-                <tr><td>Время:</td><td>${this.formatDateTime(item.DT)}</td></tr>
-                <tr><td>Стадия:</td><td>${item.Stage || '—'}</td></tr>
-                <tr><td>Длительность:</td><td>${item.Duration || '—'}</td></tr>
-                <tr><td>Заголовок:</td><td>${item.Caption || '—'}</td></tr>
-            `;
-        }
-
-        // Заполняем все параметры
-        const paramsContainer = document.getElementById('paramsDetailsContainer');
-        if (paramsContainer) {
-            let paramsHtml = '<div class="params-details-grid">';
-
-            if (item.Values) {
-                for (const [param, value] of Object.entries(item.Values)) {
-                    const numValue = parseFloat(value);
-                    const isNumeric = !isNaN(numValue);
-
-                    paramsHtml += `
-                        <div class="param-detail-item">
-                            <div class="param-detail-header">
-                                <div class="param-detail-name" title="${param}">${param}</div>
-                            </div>
-                            <div class="param-detail-value">
-                                ${isNumeric ? this.formatNumber(numValue, 4) : value}
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-
-            paramsHtml += '</div>';
-            paramsContainer.innerHTML = paramsHtml;
-        }
-
-        // Показываем модальное окно
-        const modalElement = document.getElementById('recordDetailsModal');
-        if (modalElement) {
-            const modal = new bootstrap.Modal(modalElement);
-            modal.show();
-        }
-    }
-
-    // ============================================
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // ============================================
-    renderVehiclesList() {
-        const container = document.getElementById('vehiclesList');
-        if (!container) return;
-
-        if (this.filteredVehicles.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="fas fa-car fa-2x text-muted mb-3"></i>
-                    <p class="text-muted mb-0">ТС не найдены</p>
-                </div>
-            `;
-            return;
-        }
-
-        let html = '';
-        this.filteredVehicles.forEach(vehicle => {
-            const isSelected = this.selectedVehicles.includes(vehicle.id);
-            html += `
-                <div class="vehicle-item ${isSelected ? 'selected' : ''}"
-                     onclick="analyzer.toggleVehicle('${vehicle.id}')">
-                    <div class="vehicle-icon">
-                        <i class="fas fa-truck"></i>
-                    </div>
-                    <div class="vehicle-info">
-                        <div class="vehicle-name">${vehicle.name}</div>
-                        <div class="vehicle-plate">${vehicle.license_plate || '—'}</div>
-                    </div>
-                    <div class="vehicle-check">
-                        <i class="fas fa-${isSelected ? 'check-circle' : 'circle'}"></i>
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-        this.updateVehicleCount();
-        this.updateLoadButton();
-    }
-
-    searchVehicles(query) {
-        if (!query) {
-            this.filteredVehicles = [...this.vehicles];
-        } else {
-            const searchLower = query.toLowerCase();
-            this.filteredVehicles = this.vehicles.filter(vehicle =>
-                vehicle.name.toLowerCase().includes(searchLower) ||
-                (vehicle.license_plate && vehicle.license_plate.toLowerCase().includes(searchLower))
-            );
-        }
-        this.renderVehiclesList();
-    }
-
-    toggleVehicle(vehicleId) {
-        const index = this.selectedVehicles.indexOf(vehicleId);
-        if (index > -1) {
-            this.selectedVehicles.splice(index, 1);
-        } else {
-            this.selectedVehicles.push(vehicleId);
-        }
-        this.renderVehiclesList();
-    }
-
-    selectAllVehicles() {
-        this.selectedVehicles = this.filteredVehicles.map(v => v.id);
-        this.renderVehiclesList();
-        this.showNotification('Все ТС выбраны', 'success');
-    }
-
-    deselectAllVehicles() {
-        this.selectedVehicles = [];
-        this.renderVehiclesList();
-        this.showNotification('Выбор ТС сброшен', 'info');
-    }
-
-    setPeriod(days) {
-        const toDate = new Date();
-        const fromDate = new Date();
-        fromDate.setDate(toDate.getDate() - days);
-
-        document.getElementById('dateFrom').value = fromDate.toISOString().split('T')[0];
-        document.getElementById('dateTo').value = toDate.toISOString().split('T')[0];
-        this.updateLoadButton();
-    }
-
-    updateLoadButton() {
-        const hasVehicles = this.selectedVehicles.length > 0;
-        const dateFrom = document.getElementById('dateFrom');
-        const dateTo = document.getElementById('dateTo');
-        const hasDates = dateFrom?.value && dateTo?.value;
-        const loadBtn = document.getElementById('loadDataBtn');
-
-        if (loadBtn) {
-            loadBtn.disabled = !hasVehicles || !hasDates;
-        }
-    }
-
-    updateVehicleCount() {
-        const selectedCount = document.getElementById('selectedCount');
-        if (selectedCount) {
-            selectedCount.textContent = this.selectedVehicles.length;
-        }
-    }
-
-    getParamValue(values, paramNames) {
-        if (!values) return '—';
-
-        for (const paramName of paramNames) {
-            if (values[paramName] !== undefined) {
-                const value = values[paramName];
-                const numValue = parseFloat(value);
-                return !isNaN(numValue) ? this.formatNumber(numValue, 2) : value;
-            }
-        }
-        return '—';
-    }
-
-    getNumericValue(values, paramNames) {
-        if (!values) return null;
-
-        for (const paramName of paramNames) {
-            if (values[paramName] !== undefined) {
-                const numValue = parseFloat(values[paramName]);
-                return !isNaN(numValue) ? numValue : null;
-            }
-        }
-        return null;
-    }
-
-    formatDateTime(dt) {
-        if (!dt) return '—';
-        try {
-            if (dt.includes('T')) {
-                const [date, time] = dt.split('T');
-                const [year, month, day] = date.split('-');
-                return `${day}.${month}.${year} ${time.substring(0, 8)}`;
-            }
-            return dt;
-        } catch {
-            return dt;
-        }
-    }
-
-    formatNumber(value, decimals = 0) {
-        if (value === null || value === undefined || isNaN(value)) {
-            return '0';
-        }
-
-        return value.toLocaleString('ru-RU', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
-        });
-    }
-
-    setupEventListeners() {
-        // Даты
-        const dateFrom = document.getElementById('dateFrom');
-        const dateTo = document.getElementById('dateTo');
-
-        if (dateFrom) dateFrom.addEventListener('change', () => this.updateLoadButton());
-        if (dateTo) dateTo.addEventListener('change', () => this.updateLoadButton());
-
-        // Горячие клавиши
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                this.loadData();
-            }
-        });
-    }
-
-    showLoading(title, message) {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            const titleEl = document.getElementById('loadingTitle');
-            const messageEl = document.getElementById('loadingMessage');
-
-            if (titleEl) titleEl.textContent = title;
-            if (messageEl) messageEl.textContent = message;
-            overlay.style.display = 'flex';
-        }
-    }
-
-    hideLoading() {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-        }
-    }
-
-    updateProgress(percent, message = '') {
-        const progress = document.getElementById('loadingProgress');
-        if (progress) {
-            progress.style.width = percent + '%';
-        }
-
-        if (message) {
-            const messageEl = document.getElementById('loadingMessage');
-            if (messageEl) messageEl.textContent = message;
-        }
-    }
-
-    showNotification(message, type = 'info') {
-        const container = document.getElementById('notificationContainer');
-        if (!container) return;
-
-        const icon = {
-            success: 'fa-check-circle',
-            error: 'fa-times-circle',
-            warning: 'fa-exclamation-triangle',
-            info: 'fa-info-circle'
-        }[type];
-
-        const alertClass = {
-            success: 'alert-success',
-            error: 'alert-danger',
-            warning: 'alert-warning',
-            info: 'alert-info'
-        }[type];
-
-        const notification = document.createElement('div');
-        notification.className = `alert ${alertClass} alert-dismissible fade show`;
-        notification.innerHTML = `
-            <i class="fas ${icon} me-2"></i>
-            <span>${message}</span>
-            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-        `;
-
-        container.appendChild(notification);
-
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 5000);
-    }
-
-    getCsrfToken() {
-        const token = document.querySelector('[name=csrfmiddlewaretoken]');
-        return token ? token.value : '';
-    }
-}
-
-// Глобальный экземпляр
-const analyzer = new VehicleAnalyzer();
-
-// Инициализация при загрузке страницы
+// Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
-    analyzer.init();
+    if (typeof window.analyzer !== 'undefined') {
+        window.analyzer.init();
+    } else {
+        console.error('Analyzer не найден');
+    }
 });
 </script>
-
-<style>
-/* ============================================
-   ОСНОВНЫЕ СТИЛИ
-   ============================================ */
-
-.vehicles-container {
-    padding-bottom: 2rem;
-}
-
-/* Информационная панель */
-.info-panel {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: flex-start;
-}
-
-.info-panel.info-small {
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.info-panel.info-small .info-content {
-    width: 100%;
-}
-
-.info-icon {
-    color: var(--primary-gold);
-    font-size: 1.2rem;
-    margin-right: 1rem;
-    margin-top: 0.2rem;
-}
-
-.info-content {
-    color: var(--text-light);
-    font-size: 0.9rem;
-    flex: 1;
-}
-
-/* Статистика */
-.stats-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.stats-item:last-child {
-    border-bottom: none;
-}
-
-.stats-label {
-    color: #CCCCCC;
-    font-size: 0.85rem;
-}
-
-.stats-value {
-    color: #FFD700;
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-/* Контейнер для графиков */
-.chart-container {
-    height: 400px;
-    position: relative;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    padding: 1rem;
-}
-
-/* Детали параметров */
-.params-details-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 0.75rem;
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 0.5rem;
-}
-
-.param-detail-item {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-    padding: 0.75rem;
-}
-
-.param-detail-header {
-    margin-bottom: 0.5rem;
-}
-
-.param-detail-name {
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.8rem;
-    color: #888888;
-    word-break: break-all;
-}
-
-.param-detail-value {
-    font-size: 0.9rem;
-    color: #FFD700;
-    font-weight: 500;
-    font-family: 'Consolas', 'Monaco', monospace;
-}
-
-/* Таблица */
-.table-responsive {
-    border-radius: 8px;
-}
-
-.table-dark {
-    margin-bottom: 0;
-}
-
-.table-dark th {
-    background: rgba(255, 215, 0, 0.1);
-    color: #FFD700;
-    border-color: rgba(255, 255, 255, 0.1);
-    font-weight: 600;
-    font-size: 0.85rem;
-    padding: 0.75rem 1rem;
-    position: sticky;
-    top: 0;
-}
-
-.table-dark td {
-    border-color: rgba(255, 255, 255, 0.05);
-    padding: 0.75rem 1rem;
-    vertical-align: middle;
-    font-size: 0.9rem;
-}
-
-.table-dark tbody tr:hover {
-    background: rgba(255, 215, 0, 0.05);
-}
-
-/* Панель управления графиками */
-.card.bg-dark {
-    background: rgba(255, 255, 255, 0.03) !important;
-}
-
-.card-header {
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-/* Формы */
-.form-control.bg-dark {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border-color: rgba(255, 255, 255, 0.2);
-    color: #FFFFFF;
-}
-
-.form-control.bg-dark:focus {
-    background: rgba(0, 0, 0, 0.5);
-    border-color: #FFD700;
-    color: #FFFFFF;
-    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
-}
-
-.form-label {
-    color: #CCCCCC;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-}
-
-/* Кнопки */
-.btn-gold {
-    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-    border: none;
-    color: #000000;
-    font-weight: 600;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.btn-gold:hover {
-    background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
-    color: #000000;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
-}
-
-.btn-outline-gold {
-    border: 2px solid #FFD700;
-    color: #FFD700;
-    background: transparent;
-    font-weight: 600;
-    padding: 0.5rem 1.5rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.btn-outline-gold:hover {
-    background: rgba(255, 215, 0, 0.1);
-    color: #FFD700;
-    transform: translateY(-2px);
-}
-
-.btn-dark-custom {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #CCCCCC;
-    transition: all 0.3s ease;
-}
-
-.btn-dark-custom:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 215, 0, 0.3);
-    color: #FFFFFF;
-}
-
-/* Список ТС */
-.vehicles-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.vehicle-item {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 0.75rem;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.vehicle-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.vehicle-item.selected {
-    background: rgba(255, 215, 0, 0.1);
-    border-color: rgba(255, 215, 0, 0.3);
-}
-
-.vehicle-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    background: rgba(255, 215, 0, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 0.75rem;
-    color: #FFD700;
-}
-
-.vehicle-info {
-    flex: 1;
-}
-
-.vehicle-name {
-    color: #FFFFFF;
-    font-weight: 500;
-    font-size: 0.95rem;
-    margin-bottom: 0.1rem;
-}
-
-.vehicle-plate {
-    color: #888888;
-    font-size: 0.8rem;
-}
-
-.vehicle-check {
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 1.1rem;
-}
-
-.vehicle-item.selected .vehicle-check {
-    color: #FFD700;
-}
-
-/* Оверлей загрузки */
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 9999;
-    display: none;
-    justify-content: center;
-    align-items: center;
-}
-
-.loading-content {
-    text-align: center;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.loading-spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid rgba(255, 215, 0, 0.3);
-    border-top: 4px solid #FFD700;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Уведомления */
-.notification-container {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 9998;
-    max-width: 350px;
-}
-
-.notification-container .alert {
-    margin-bottom: 0.5rem;
-    animation: slideInRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-
-/* Вкладки */
-.tabs-container {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.tabs-header {
-    display: flex;
-    background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.5rem;
-}
-
-.tab-btn {
-    background: transparent;
-    border: none;
-    color: #CCCCCC;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 8px;
-    margin: 0 0.25rem;
-}
-
-.tab-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #FFFFFF;
-}
-
-.tab-btn.active {
-    background: rgba(255, 215, 0, 0.1);
-    color: #FFD700;
-    border-bottom: 2px solid #FFD700;
-}
-
-.tab-content {
-    display: none;
-    padding: 1.5rem;
-}
-
-.tab-content.active {
-    display: block;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Панель управления */
-.control-panel {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.panel-header {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.panel-title {
-    color: #FFD700;
-    font-weight: 600;
-    font-size: 1rem;
-    margin: 0;
-    display: flex;
-    align-items: center;
-}
-
-.panel-title i {
-    margin-right: 0.5rem;
-}
-
-.panel-body {
-    padding: 1.5rem;
-}
-
-/* Модальное окно */
-.modal-content {
-    border: 2px solid #FFD700;
-    border-radius: 12px;
-}
-
-.modal-header {
-    background: rgba(0, 0, 0, 0.5);
-    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.modal-title {
-    color: #FFD700;
-    font-weight: 600;
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .params-details-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .tab-btn {
-        flex: 1;
-        min-width: 120px;
-        margin: 0.25rem;
-        padding: 0.5rem 1rem;
-        font-size: 0.85rem;
-    }
-
-    .vehicle-name {
-        font-size: 0.85rem;
-    }
-
-    .vehicle-plate {
-        font-size: 0.75rem;
-    }
-
-    .chart-container {
-        height: 300px;
-        padding: 0.5rem;
-    }
-}
-
-@media (max-width: 576px) {
-    .chart-container {
-        height: 250px;
-    }
-
-    .stats-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .stats-value {
-        margin-top: 0.25rem;
-    }
-}
-</style>
 {% endblock %}

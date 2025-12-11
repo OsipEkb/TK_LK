@@ -1,8 +1,7 @@
-# config/settings.py - ДОБАВЛЯЕМ vehicles
+# config/settings.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -38,22 +37,11 @@ INSTALLED_APPS = [
     # Только рабочие приложения
     'users',      # приложение с авторизацией
     'dashboard',  # панель управления
-    'vehicles',   # мониторинг транспорта ← ДОБАВЛЯЕМ
-
-    # ВРЕМЕННО комментируем остальные
-    # 'billing',
-    # 'support',
-    # 'api',
-    # 'reports',
-
-    # ВРЕМЕННО комментируем сторонние
-    # 'corsheaders',
-    # 'drf_yasg',
+    'vehicles',   # мониторинг транспорта
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,14 +55,17 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
+        'DIRS': [
+            BASE_DIR / 'templates',  # Основная папка templates
+        ],
+        'APP_DIRS': True,  # Ищет шаблоны в папке templates каждого приложения
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.static',
             ],
         },
     },
@@ -103,9 +94,20 @@ TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_TZ = True
 
+# ============================================
+# ВАЖНО: НАСТРОЙКИ СТАТИЧЕСКИХ ФАЙЛОВ
+# ============================================
+
+# URL-префикс для статических файлов
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# Директории для поиска статических файлов
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # static/ в корне проекта
+]
+
+# Папка для collectstatic (используется в production)
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -122,7 +124,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_NAME = 'autograph_sessionid'
 
-# Логирование - ДОБАВЛЯЕМ vehicles
+# Логирование
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -143,6 +145,11 @@ LOGGING = {
         'level': 'INFO',
     },
     'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
         'users': {
             'handlers': ['console'],
             'level': 'DEBUG',
@@ -153,7 +160,7 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-        'vehicles': {  # ← ДОБАВЛЯЕМ
+        'vehicles': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
@@ -162,7 +169,10 @@ LOGGING = {
 }
 
 # Создаем директории если нет
-os.makedirs(STATIC_ROOT, exist_ok=True)
+os.makedirs(BASE_DIR / 'static', exist_ok=True)
+os.makedirs(BASE_DIR / 'static' / 'vehicles', exist_ok=True)
+os.makedirs(BASE_DIR / 'static' / 'vehicles' / 'css', exist_ok=True)
+os.makedirs(BASE_DIR / 'static' / 'vehicles' / 'js', exist_ok=True)
 
 # AutoGRAPH API настройки
 AUTOGRAPH_API_BASE_URL = os.getenv('AUTOGRAPH_API_BASE_URL', "https://web.tk-ekat.ru")
@@ -174,7 +184,7 @@ LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_URL = '/auth/logout/'
 LOGOUT_REDIRECT_URL = '/auth/login/'
 
-# Django REST Framework настройки (включаем)
+# Django REST Framework настройки
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
@@ -186,16 +196,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
-    ],
 }
-
-# CORS настройки (для разработки)
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOW_CREDENTIALS = True
 
 # Настройки кэша
 CACHES = {
@@ -204,6 +205,3 @@ CACHES = {
         'LOCATION': 'unique-snowflake',
     }
 }
-
-# Настройки для vehicles app (дополнительные)
-VEHICLES_CACHE_TIMEOUT = 300  # 5 минут кэш для данных ТС
