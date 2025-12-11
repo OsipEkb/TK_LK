@@ -1,0 +1,1712 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Тестовая панель с диаграммами{% endblock %}
+
+{% block body_class %}test-dashboard-container{% endblock %}
+
+{% block content %}
+<div class="test-dashboard-container">
+    <!-- Заголовок -->
+    <div class="test-header mb-4">
+        <div class="header-glow"></div>
+        <div class="container-fluid header-content">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center">
+                        <div class="header-icon-wrapper me-4">
+                            <i class="fas fa-chart-network fa-2x text-gold"></i>
+                            <span class="test-badge">ТЕСТ</span>
+                        </div>
+                        <div>
+                            <h1 class="h1 mb-2 fw-bold text-light">Тестовая панель с диаграммами</h1>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-flask me-1"></i> ТЕСТОВЫЙ РЕЖИМ
+                                </span>
+                                <span class="text-light opacity-75">
+                                    <i class="fas fa-database me-1"></i> Реальные данные AutoGRAPH
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <div class="btn-group">
+                        <a href="{% url 'vehicles_main' %}" class="btn btn-outline-gold">
+                            <i class="fas fa-arrow-left me-2"></i>Основная панель
+                        </a>
+                        <button class="btn btn-gold" onclick="testDashboard.loadRawData()">
+                            <i class="fas fa-sync-alt me-2"></i>Загрузить данные
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid py-4">
+        <!-- Информационная панель -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="info-panel info-warning">
+                    <div class="info-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="info-content">
+                        <strong>Тестовый режим:</strong> Эта панель выводит ВСЕ сырые данные из AutoGRAPH API для сравнения.
+                        <br>
+                        <small class="opacity-75">Период: <span id="periodDisplay">03.12.2025 - 10.12.2025</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Левая панель управления -->
+            <div class="col-lg-3">
+                <!-- Выбор ТС -->
+                <div class="control-panel mb-4">
+                    <div class="panel-header">
+                        <h5 class="panel-title">
+                            <i class="fas fa-car"></i>
+                            Выбор ТС
+                            <span class="badge bg-gold text-dark ms-2" id="testSelectedCount">0</span>
+                        </h5>
+                        <div class="input-group input-group-sm mt-2">
+                            <span class="input-group-text bg-dark border-secondary text-light">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control bg-dark border-secondary text-light"
+                                   placeholder="Поиск ТС..." id="testVehicleSearch"
+                                   onkeyup="testDashboard.searchVehicles(this.value)">
+                        </div>
+                    </div>
+                    <div class="panel-body" style="height: 300px; overflow-y: auto;">
+                        <div class="btn-group w-100 mb-3">
+                            <button class="btn btn-dark-custom flex-grow-1" onclick="testDashboard.selectAllVehicles()">
+                                <i class="fas fa-check-double me-1"></i> Все
+                            </button>
+                            <button class="btn btn-dark-custom flex-grow-1" onclick="testDashboard.deselectAllVehicles()">
+                                <i class="fas fa-times me-1"></i> Сбросить
+                            </button>
+                        </div>
+
+                        <div class="vehicles-list" id="testVehiclesList">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-gold" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
+                                </div>
+                                <p class="text-muted mt-3 mb-0">Загрузка ТС...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Период анализа -->
+                <div class="control-panel mb-4">
+                    <div class="panel-header">
+                        <h5 class="panel-title">
+                            <i class="fas fa-calendar-alt"></i>
+                            Период анализа
+                        </h5>
+                    </div>
+                    <div class="panel-body">
+                        <div class="mb-3">
+                            <label class="form-label text-light">Начало</label>
+                            <input type="date" class="form-control bg-dark border-secondary text-light"
+                                   id="testDateFrom" value="2025-12-03">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-light">Окончание</label>
+                            <input type="date" class="form-control bg-dark border-secondary text-light"
+                                   id="testDateTo" value="2025-12-10">
+                        </div>
+
+                        <div class="btn-group w-100 mb-3">
+                            <button class="btn btn-dark-custom flex-grow-1" onclick="testDashboard.setPeriod(1)">День</button>
+                            <button class="btn btn-dark-custom flex-grow-1" onclick="testDashboard.setPeriod(7)">Неделя</button>
+                            <button class="btn btn-dark-custom flex-grow-1" onclick="testDashboard.setPeriod(30)">Месяц</button>
+                        </div>
+
+                        <button class="btn btn-gold w-100" id="testLoadDataBtn" onclick="testDashboard.loadRawData()" disabled>
+                            <i class="fas fa-database me-2"></i>
+                            Загрузить данные
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Информация о данных -->
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <h5 class="panel-title">
+                            <i class="fas fa-info-circle"></i>
+                            Информация
+                        </h5>
+                    </div>
+                    <div class="panel-body">
+                        <div class="info-item">
+                            <div class="info-label">Всего записей:</div>
+                            <div class="info-value" id="totalRecordsInfo">0</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Параметров:</div>
+                            <div class="info-value" id="totalParamsInfo">0</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">ТС загружено:</div>
+                            <div class="info-value" id="vehiclesLoadedInfo">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая панель с данными -->
+            <div class="col-lg-9">
+                <!-- Вкладки -->
+                <div class="tabs-container mb-4">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" data-tab="rawdata">
+                            <i class="fas fa-database me-2"></i> Сырые данные
+                        </button>
+                        <button class="tab-btn" data-tab="analysis">
+                            <i class="fas fa-chart-line me-2"></i> Анализ
+                        </button>
+                    </div>
+
+                    <!-- Вкладка Сырые данные -->
+                    <div class="tab-content active" id="rawdataTab">
+                        <div class="raw-data-container">
+                            <!-- Выбор ТС для просмотра -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-light">ТС для просмотра:</label>
+                                    <select class="form-control bg-dark border-secondary text-light"
+                                            id="rawDataVehicleSelect" onchange="testDashboard.showVehicleData()">
+                                        <option value="">Выберите ТС...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-light">Параметр для графика:</label>
+                                    <div class="input-group">
+                                        <select class="form-control bg-dark border-secondary text-light"
+                                                id="rawDataParamSelect">
+                                            <option value="">Выберите параметр...</option>
+                                        </select>
+                                        <button class="btn btn-gold" onclick="testDashboard.plotParameter()">
+                                            <i class="fas fa-chart-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Таблица данных -->
+                            <div class="card bg-dark border-secondary mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Таблица данных (первые 100 записей)</h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-dark table-hover mb-0">
+                                            <thead style="position: sticky; top: 0; background: #1a1a1a;">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Время</th>
+                                                    <th>Стадия</th>
+                                                    <th>Длительность</th>
+                                                    <th>Speed</th>
+                                                    <th>Fuel</th>
+                                                    <th>Distance</th>
+                                                    <th>Rating</th>
+                                                    <th>Детали</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="rawDataTableBody">
+                                                <tr>
+                                                    <td colspan="9" class="text-center py-4">
+                                                        <i class="fas fa-database fa-2x text-muted mb-3"></i>
+                                                        <p class="text-muted mb-0">Загрузите данные для просмотра</p>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- График параметра -->
+                            <div class="card bg-dark border-secondary mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">График параметра</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-mini-container">
+                                        <canvas id="rawParamChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Список всех параметров -->
+                            <div class="card bg-dark border-secondary">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Все параметры ТС</h5>
+                                    <small class="text-muted">Кликните по параметру для построения графика</small>
+                                </div>
+                                <div class="card-body">
+                                    <div id="rawParamsList" class="params-grid">
+                                        <div class="text-center py-4">
+                                            <p class="text-muted mb-0">Параметры появятся после загрузки данных</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Вкладка Анализ -->
+                    <div class="tab-content" id="analysisTab">
+                        <div class="analysis-container">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card bg-dark border-secondary mb-4">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Статистика по параметрам</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="paramsStats" class="stats-list">
+                                                <!-- Статистика будет здесь -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-dark border-secondary mb-4">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Экспорт данных</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="btn-group-vertical w-100">
+                                                <button class="btn btn-dark-custom mb-2" onclick="testDashboard.exportData('json')">
+                                                    <i class="fas fa-file-code me-2"></i>Экспорт в JSON
+                                                </button>
+                                                <button class="btn btn-dark-custom mb-2" onclick="testDashboard.exportData('csv')">
+                                                    <i class="fas fa-file-csv me-2"></i>Экспорт в CSV
+                                                </button>
+                                                <button class="btn btn-dark-custom" onclick="testDashboard.exportData('excel')">
+                                                    <i class="fas fa-file-excel me-2"></i>Экспорт в Excel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно деталей записи -->
+<div class="modal fade" id="recordDetailsModal">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-gold">Детали записи</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Основная информация</h6>
+                        <table class="table table-sm table-dark" id="basicInfoTable">
+                            <!-- Будет заполнено через JS -->
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Все параметры</h6>
+                        <div class="params-details-container" id="paramsDetailsContainer">
+                            <!-- Будет заполнено через JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Оверлей загрузки -->
+<div class="loading-overlay" id="testLoadingOverlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h4 id="testLoadingTitle" class="mt-4 mb-2 text-gold">Загрузка данных</h4>
+        <p id="testLoadingMessage" class="text-light opacity-75 mb-0">Получение данных из AutoGRAPH...</p>
+        <div class="progress mt-3" style="width: 300px;">
+            <div class="progress-bar bg-gold" id="testLoadingProgress" style="width: 0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Контейнер для уведомлений -->
+<div id="testNotificationContainer" class="notification-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ============================================
+// Test Dashboard - Панель для просмотра сырых данных
+// ============================================
+class TestDashboard {
+    constructor() {
+        this.vehicles = [];
+        this.filteredVehicles = [];
+        this.selectedVehicles = [];
+        this.rawData = null;
+        this.currentVehicleId = null;
+        this.chart = null;
+    }
+
+    // ============================================
+    // ИНИЦИАЛИЗАЦИЯ
+    // ============================================
+    async init() {
+        console.log('🚀 Инициализация тестовой панели');
+
+        try {
+            await this.loadVehicles();
+            this.setupEventListeners();
+            this.setupTabs();
+            this.updatePeriodDisplay();
+
+            this.showNotification('Тестовая панель готова к работе', 'info');
+
+        } catch (error) {
+            console.error('Ошибка инициализации:', error);
+            this.showNotification('Ошибка инициализации: ' + error.message, 'error');
+        }
+    }
+
+    // ============================================
+    // ЗАГРУЗКА ДАННЫХ
+    // ============================================
+    async loadVehicles() {
+        this.showLoading('Загрузка ТС', 'Получение списка транспортных средств...');
+
+        try {
+            const response = await fetch('/vehicles/api/get-vehicles/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ошибка ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.vehicles = data.data.vehicles;
+                this.filteredVehicles = [...this.vehicles];
+                console.log(`✅ Загружено ТС: ${this.vehicles.length}`);
+                this.renderVehiclesList();
+                this.showNotification(`Загружено ${this.vehicles.length} ТС`, 'success');
+            } else {
+                throw new Error(data.error || 'Ошибка загрузки ТС');
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка загрузки ТС:', error);
+            this.showNotification('Ошибка загрузки ТС: ' + error.message, 'error');
+
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async loadRawData() {
+        if (this.selectedVehicles.length === 0) {
+            this.showNotification('Выберите хотя бы одно ТС', 'warning');
+            return;
+        }
+
+        const startDate = document.getElementById('testDateFrom').value;
+        const endDate = document.getElementById('testDateTo').value;
+
+        if (!startDate || !endDate) {
+            this.showNotification('Укажите период анализа', 'warning');
+            return;
+        }
+
+        try {
+            this.showLoading('Загрузка данных', 'Получение ВСЕХ данных из AutoGRAPH...');
+            this.updateProgress(30, 'Отправка запроса...');
+
+            const response = await fetch('/vehicles/api/test-get-raw-data/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    vehicle_ids: this.selectedVehicles,
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            });
+
+            this.updateProgress(60, 'Обработка данных...');
+
+            if (!response.ok) {
+                throw new Error(`HTTP ошибка: ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.updateProgress(90, 'Форматирование данных...');
+
+            if (data.success) {
+                this.rawData = data.data;
+                this.updateRawDataUI();
+                this.showNotification(`Загружено ${this.rawData.total_records} записей`, 'success');
+
+                // Переключаемся на вкладку сырых данных
+                this.switchTab('rawdata');
+
+                // Показываем данные первого ТС
+                if (Object.keys(this.rawData.vehicles).length > 0) {
+                    const firstVehicleId = Object.keys(this.rawData.vehicles)[0];
+                    this.showVehicleData(firstVehicleId);
+                }
+
+            } else {
+                throw new Error(data.error || 'Ошибка загрузки данных');
+            }
+
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных:', error);
+            this.showNotification('Ошибка: ' + error.message, 'error');
+
+        } finally {
+            this.updateProgress(100, 'Завершено');
+            setTimeout(() => this.hideLoading(), 1000);
+        }
+    }
+
+    // ============================================
+    // ОТОБРАЖЕНИЕ ДАННЫХ
+    // ============================================
+    updateRawDataUI() {
+        if (!this.rawData) return;
+
+        // Обновляем информацию
+        document.getElementById('totalRecordsInfo').textContent =
+            this.rawData.total_records.toLocaleString('ru-RU');
+        document.getElementById('totalParamsInfo').textContent =
+            this.rawData.all_parameters.length;
+        document.getElementById('vehiclesLoadedInfo').textContent =
+            Object.keys(this.rawData.vehicles).length;
+
+        // Обновляем отображение периода
+        this.updatePeriodDisplay();
+    }
+
+    showVehicleData(vehicleId = null) {
+        if (!vehicleId) {
+            vehicleId = document.getElementById('rawDataVehicleSelect').value;
+        }
+
+        if (!vehicleId || !this.rawData || !this.rawData.vehicles[vehicleId]) {
+            return;
+        }
+
+        this.currentVehicleId = vehicleId;
+        const vehicleData = this.rawData.vehicles[vehicleId];
+
+        // Обновляем выбор ТС если нужно
+        const vehicleSelect = document.getElementById('rawDataVehicleSelect');
+        if (vehicleSelect.value !== vehicleId) {
+            vehicleSelect.value = vehicleId;
+        }
+
+        // Заполняем таблицу
+        this.renderDataTable(vehicleData);
+
+        // Заполняем список параметров
+        this.renderParametersList(vehicleData);
+
+        // Заполняем выбор параметров для графика
+        this.renderParameterSelect(vehicleData);
+    }
+
+    renderDataTable(vehicleData) {
+        const tbody = document.getElementById('rawDataTableBody');
+
+        if (!vehicleData.samples || vehicleData.samples.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-4">
+                        <i class="fas fa-database fa-2x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">Нет данных для отображения</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        vehicleData.samples.forEach((item, index) => {
+            const speed = this.getParamValue(item.Values, ['Speed', 'AverageSpeed', 'MaxSpeed']);
+            const fuel = this.getParamValue(item.Values, ['Engine1FuelConsum', 'FuelConsumption', 'Fuel']);
+            const distance = this.getParamValue(item.Values, ['TotalDistance', 'Distance', 'Odometer']);
+            const rating = this.getParamValue(item.Values, ['DQRating', 'Rating']);
+
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${this.formatDateTime(item.DT)}</td>
+                    <td><span class="badge bg-secondary">${item.Stage || '—'}</span></td>
+                    <td>${item.Duration || '—'}</td>
+                    <td>${speed}</td>
+                    <td>${fuel}</td>
+                    <td>${distance}</td>
+                    <td>${rating}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-gold"
+                                onclick="testDashboard.showRecordDetails('${this.currentVehicleId}', ${index})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    renderParametersList(vehicleData) {
+        const paramsList = document.getElementById('rawParamsList');
+
+        if (!vehicleData.params || vehicleData.params.length === 0) {
+            paramsList.innerHTML = `
+                <div class="text-center py-4 w-100">
+                    <p class="text-muted mb-0">Нет параметров для отображения</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        vehicleData.params.forEach(param => {
+            html += `
+                <div class="param-item" onclick="testDashboard.plotSpecificParameter('${param}')">
+                    <div class="param-name" title="${param}">${param}</div>
+                    <div class="param-actions">
+                        <button class="btn btn-sm btn-outline-gold" onclick="event.stopPropagation(); testDashboard.plotSpecificParameter('${param}')">
+                            <i class="fas fa-chart-line"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        paramsList.innerHTML = html;
+    }
+
+    renderParameterSelect(vehicleData) {
+        const paramSelect = document.getElementById('rawDataParamSelect');
+
+        let html = '<option value="">Выберите параметр...</option>';
+
+        if (vehicleData.params && vehicleData.params.length > 0) {
+            vehicleData.params.forEach(param => {
+                html += `<option value="${param}">${param}</option>`;
+            });
+        }
+
+        paramSelect.innerHTML = html;
+    }
+
+    // ============================================
+    // ГРАФИКИ
+    // ============================================
+    plotParameter() {
+        const paramSelect = document.getElementById('rawDataParamSelect');
+        const param = paramSelect.value;
+
+        if (!param) {
+            this.showNotification('Выберите параметр для графика', 'warning');
+            return;
+        }
+
+        this.plotSpecificParameter(param);
+    }
+
+    plotSpecificParameter(paramName) {
+        if (!this.currentVehicleId || !this.rawData || !this.rawData.vehicles[this.currentVehicleId]) {
+            this.showNotification('Сначала загрузите данные ТС', 'warning');
+            return;
+        }
+
+        const vehicleData = this.rawData.vehicles[this.currentVehicleId];
+        if (!vehicleData.samples) return;
+
+        // Собираем данные для графика
+        const labels = [];
+        const data = [];
+
+        vehicleData.samples.forEach((item, index) => {
+            if (item.Values[paramName] !== undefined && item.DT) {
+                const time = this.formatTime(item.DT);
+                const value = parseFloat(item.Values[paramName]);
+
+                if (!isNaN(value)) {
+                    labels.push(`${index + 1}. ${time}`);
+                    data.push(value);
+                }
+            }
+        });
+
+        if (labels.length === 0) {
+            this.showNotification(`Нет данных для параметра "${paramName}"`, 'warning');
+            return;
+        }
+
+        // Строим график
+        const canvas = document.getElementById('rawParamChart');
+        const ctx = canvas.getContext('2d');
+
+        // Уничтожаем предыдущий график
+        if (this.chart) {
+            this.chart.destroy();
+        }
+
+        this.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: paramName,
+                    data: data,
+                    borderColor: '#FFD700',
+                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#FFD700'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Параметр: ${paramName}`,
+                        color: '#FFD700',
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        labels: {
+                            color: '#FFFFFF',
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#FFD700',
+                        bodyColor: '#FFFFFF',
+                        borderColor: '#FFD700',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#CCCCCC',
+                            maxTicksLimit: 20,
+                            callback: function(value, index) {
+                                return index + 1; // Просто номер записи
+                            }
+                        },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#CCCCCC',
+                            callback: (value) => this.formatNumber(value, 2)
+                        },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    }
+                }
+            }
+        });
+
+        // Обновляем выбор в селекте
+        document.getElementById('rawDataParamSelect').value = paramName;
+
+        this.showNotification(`Построен график для параметра "${paramName}"`, 'success');
+    }
+
+    // ============================================
+    // ПРОСМОТР ДЕТАЛЕЙ
+    // ============================================
+    showRecordDetails(vehicleId, itemIndex) {
+        if (!this.rawData || !this.rawData.vehicles[vehicleId]) {
+            return;
+        }
+
+        const vehicleData = this.rawData.vehicles[vehicleId];
+        const item = vehicleData.samples[itemIndex];
+
+        if (!item) return;
+
+        // Заполняем основную информацию
+        const basicInfoTable = document.getElementById('basicInfoTable');
+        basicInfoTable.innerHTML = `
+            <tr><td>ТС:</td><td class="text-gold">${vehicleData.name}</td></tr>
+            <tr><td>Время:</td><td>${this.formatDateTime(item.DT)}</td></tr>
+            <tr><td>Стадия:</td><td>${item.Stage || '—'}</td></tr>
+            <tr><td>Длительность:</td><td>${item.Duration || '—'}</td></tr>
+            <tr><td>Заголовок:</td><td>${item.Caption || '—'}</td></tr>
+        `;
+
+        // Заполняем все параметры
+        const paramsContainer = document.getElementById('paramsDetailsContainer');
+        let paramsHtml = '<div class="params-details-grid">';
+
+        for (const [param, value] of Object.entries(item.Values)) {
+            const numValue = parseFloat(value);
+            const isNumeric = !isNaN(numValue);
+
+            paramsHtml += `
+                <div class="param-detail-item">
+                    <div class="param-detail-name" title="${param}">${param}</div>
+                    <div class="param-detail-value ${isNumeric ? 'numeric' : ''}">
+                        ${isNumeric ? this.formatNumber(numValue, 4) : value}
+                    </div>
+                </div>
+            `;
+        }
+
+        paramsHtml += '</div>';
+        paramsContainer.innerHTML = paramsHtml;
+
+        // Показываем модальное окно
+        const modal = new bootstrap.Modal(document.getElementById('recordDetailsModal'));
+        modal.show();
+    }
+
+    // ============================================
+    // ЭКСПОРТ ДАННЫХ
+    // ============================================
+    exportData(format) {
+        if (!this.rawData) {
+            this.showNotification('Нет данных для экспорта', 'warning');
+            return;
+        }
+
+        let dataStr, filename, mimeType;
+
+        switch(format) {
+            case 'json':
+                dataStr = JSON.stringify(this.rawData, null, 2);
+                filename = `autograph-data-${new Date().toISOString().slice(0,10)}.json`;
+                mimeType = 'application/json';
+                break;
+
+            case 'csv':
+                dataStr = this.convertToCSV();
+                filename = `autograph-data-${new Date().toISOString().slice(0,10)}.csv`;
+                mimeType = 'text/csv;charset=utf-8;';
+                break;
+
+            case 'excel':
+                dataStr = this.convertToCSV();
+                filename = `autograph-data-${new Date().toISOString().slice(0,10)}.csv`;
+                mimeType = 'application/vnd.ms-excel';
+                break;
+
+            default:
+                return;
+        }
+
+        const blob = new Blob([dataStr], { type: mimeType });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+
+        this.showNotification(`Данные экспортированы в ${format.toUpperCase()}`, 'success');
+    }
+
+    convertToCSV() {
+        if (!this.rawData || !this.currentVehicleId || !this.rawData.vehicles[this.currentVehicleId]) {
+            return '';
+        }
+
+        const vehicleData = this.rawData.vehicles[this.currentVehicleId];
+        if (!vehicleData.samples || vehicleData.samples.length === 0) {
+            return '';
+        }
+
+        // Собираем все уникальные параметры
+        const allParams = new Set(['Time', 'Stage', 'Duration', 'Caption']);
+
+        vehicleData.samples.forEach(item => {
+            Object.keys(item.Values).forEach(param => {
+                allParams.add(param);
+            });
+        });
+
+        const paramsArray = Array.from(allParams);
+
+        // Создаем заголовок CSV
+        let csv = paramsArray.join(';') + '\n';
+
+        // Добавляем данные
+        vehicleData.samples.forEach(item => {
+            const row = [];
+
+            paramsArray.forEach(param => {
+                let value = '';
+
+                switch(param) {
+                    case 'Time':
+                        value = item.DT || '';
+                        break;
+                    case 'Stage':
+                        value = item.Stage || '';
+                        break;
+                    case 'Duration':
+                        value = item.Duration || '';
+                        break;
+                    case 'Caption':
+                        value = item.Caption || '';
+                        break;
+                    default:
+                        value = item.Values[param] || '';
+                }
+
+                // Экранируем специальные символы
+                if (value.toString().includes(';') || value.toString().includes('"') || value.toString().includes('\n')) {
+                    value = '"' + value.toString().replace(/"/g, '""') + '"';
+                }
+
+                row.push(value);
+            });
+
+            csv += row.join(';') + '\n';
+        });
+
+        return csv;
+    }
+
+    // ============================================
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    // ============================================
+    renderVehiclesList() {
+        const container = document.getElementById('testVehiclesList');
+        if (!container) return;
+
+        if (this.filteredVehicles.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-car fa-2x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">ТС не найдены</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        this.filteredVehicles.forEach(vehicle => {
+            const isSelected = this.selectedVehicles.includes(vehicle.id);
+            html += `
+                <div class="vehicle-item ${isSelected ? 'selected' : ''}"
+                     onclick="testDashboard.toggleVehicle('${vehicle.id}')">
+                    <div class="vehicle-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div class="vehicle-info">
+                        <div class="vehicle-name">${vehicle.name}</div>
+                        <div class="vehicle-plate">${vehicle.license_plate || '—'}</div>
+                    </div>
+                    <div class="vehicle-check">
+                        <i class="fas fa-${isSelected ? 'check-circle' : 'circle'}"></i>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        this.updateVehicleCount();
+        this.updateLoadButton();
+    }
+
+    searchVehicles(query) {
+        if (!query) {
+            this.filteredVehicles = [...this.vehicles];
+        } else {
+            const searchLower = query.toLowerCase();
+            this.filteredVehicles = this.vehicles.filter(vehicle =>
+                vehicle.name.toLowerCase().includes(searchLower) ||
+                (vehicle.license_plate && vehicle.license_plate.toLowerCase().includes(searchLower))
+            );
+        }
+        this.renderVehiclesList();
+    }
+
+    toggleVehicle(vehicleId) {
+        const index = this.selectedVehicles.indexOf(vehicleId);
+        if (index > -1) {
+            this.selectedVehicles.splice(index, 1);
+        } else {
+            this.selectedVehicles.push(vehicleId);
+        }
+        this.renderVehiclesList();
+    }
+
+    selectAllVehicles() {
+        this.selectedVehicles = this.filteredVehicles.map(v => v.id);
+        this.renderVehiclesList();
+        this.showNotification('Все ТС выбраны', 'success');
+    }
+
+    deselectAllVehicles() {
+        this.selectedVehicles = [];
+        this.renderVehiclesList();
+        this.showNotification('Выбор ТС сброшен', 'info');
+    }
+
+    setPeriod(days) {
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(toDate.getDate() - days);
+
+        document.getElementById('testDateFrom').value = fromDate.toISOString().split('T')[0];
+        document.getElementById('testDateTo').value = toDate.toISOString().split('T')[0];
+        this.updateLoadButton();
+        this.updatePeriodDisplay();
+    }
+
+    updatePeriodDisplay() {
+        const startDate = document.getElementById('testDateFrom').value;
+        const endDate = document.getElementById('testDateTo').value;
+
+        if (startDate && endDate) {
+            const startFormatted = this.formatDate(startDate);
+            const endFormatted = this.formatDate(endDate);
+            document.getElementById('periodDisplay').textContent = `${startFormatted} - ${endFormatted}`;
+        }
+    }
+
+    updateLoadButton() {
+        const hasVehicles = this.selectedVehicles.length > 0;
+        const hasDates = document.getElementById('testDateFrom').value &&
+                         document.getElementById('testDateTo').value;
+        const loadBtn = document.getElementById('testLoadDataBtn');
+
+        if (loadBtn) {
+            loadBtn.disabled = !hasVehicles || !hasDates;
+        }
+    }
+
+    updateVehicleCount() {
+        document.getElementById('testSelectedCount').textContent = this.selectedVehicles.length;
+    }
+
+    getParamValue(values, paramNames) {
+        for (const paramName of paramNames) {
+            if (values[paramName] !== undefined) {
+                const value = values[paramName];
+                const numValue = parseFloat(value);
+                return !isNaN(numValue) ? this.formatNumber(numValue, 2) : value;
+            }
+        }
+        return '—';
+    }
+
+    formatDateTime(dt) {
+        if (!dt) return '—';
+
+        if (dt.includes('T')) {
+            const [date, time] = dt.split('T');
+            return `${this.formatDate(date)} ${time.substring(0, 8)}`;
+        }
+
+        return dt;
+    }
+
+    formatDate(dateStr) {
+        if (!dateStr) return '—';
+
+        try {
+            const [year, month, day] = dateStr.split('-');
+            return `${day}.${month}.${year}`;
+        } catch {
+            return dateStr;
+        }
+    }
+
+    formatTime(dt) {
+        if (!dt) return '—';
+
+        if (dt.includes('T')) {
+            return dt.split('T')[1].substring(0, 8);
+        } else if (dt.includes(' ')) {
+            return dt.split(' ')[1].substring(0, 8);
+        }
+
+        return dt.substring(11, 19) || dt;
+    }
+
+    formatNumber(value, decimals = 0) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0';
+        }
+
+        return value.toLocaleString('ru-RU', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    setupEventListeners() {
+        document.getElementById('testDateFrom')?.addEventListener('change', () => {
+            this.updateLoadButton();
+            this.updatePeriodDisplay();
+        });
+
+        document.getElementById('testDateTo')?.addEventListener('change', () => {
+            this.updateLoadButton();
+            this.updatePeriodDisplay();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                this.loadRawData();
+            }
+        });
+    }
+
+    setupTabs() {
+        document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.dataset.tab;
+                this.switchTab(tabId);
+            });
+        });
+    }
+
+    switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+        const activeContent = document.getElementById(`${tabId}Tab`);
+
+        if (activeBtn) activeBtn.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+
+        if (this.chart) {
+            setTimeout(() => {
+                try {
+                    this.chart.resize();
+                } catch (e) {
+                    console.warn('Ошибка перерисовки графика:', e);
+                }
+            }, 100);
+        }
+    }
+
+    // ============================================
+    // УПРАВЛЕНИЕ ЗАГРУЗКОЙ
+    // ============================================
+    showLoading(title, message) {
+        const overlay = document.getElementById('testLoadingOverlay');
+        if (overlay) {
+            document.getElementById('testLoadingTitle').textContent = title;
+            document.getElementById('testLoadingMessage').textContent = message;
+            overlay.style.display = 'flex';
+        }
+    }
+
+    hideLoading() {
+        const overlay = document.getElementById('testLoadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    updateProgress(percent, message = '') {
+        const progress = document.getElementById('testLoadingProgress');
+        if (progress) {
+            progress.style.width = percent + '%';
+        }
+
+        if (message) {
+            document.getElementById('testLoadingMessage').textContent = message;
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const container = document.getElementById('testNotificationContainer');
+        if (!container) return;
+
+        const icon = {
+            success: 'fa-check-circle',
+            error: 'fa-times-circle',
+            warning: 'fa-exclamation-triangle',
+            info: 'fa-info-circle'
+        }[type];
+
+        const alertClass = {
+            success: 'alert-success',
+            error: 'alert-danger',
+            warning: 'alert-warning',
+            info: 'alert-info'
+        }[type];
+
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show`;
+        notification.innerHTML = `
+            <i class="fas ${icon} me-2"></i>
+            <span>${message}</span>
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+
+        container.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+
+    getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        return token ? token.value : '';
+    }
+}
+
+// Глобальный экземпляр
+const testDashboard = new TestDashboard();
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    testDashboard.init();
+});
+</script>
+
+<style>
+/* ============================================
+   СТИЛИ ДЛЯ ТЕСТОВОЙ ПАНЕЛИ
+   ============================================ */
+
+.test-dashboard-container {
+    padding-bottom: 2rem;
+}
+
+.test-header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border-bottom: 2px solid #FFD700;
+    padding: 1.5rem 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.test-header .header-icon-wrapper {
+    position: relative;
+}
+
+.test-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.info-warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+    border-color: #ffc107;
+}
+
+.info-warning .info-icon {
+    color: #ffc107;
+}
+
+/* Вкладки */
+.tabs-container {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.tabs-header {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #CCCCCC;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin: 0 0.25rem;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
+}
+
+.tab-btn.active {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    border-bottom: 2px solid #FFD700;
+}
+
+.tab-content {
+    display: none;
+    padding: 1.5rem;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Таблица данных */
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table-dark {
+    background: transparent;
+    margin-bottom: 0;
+}
+
+.table-dark th {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    border-color: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+}
+
+.table-dark td {
+    border-color: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.table-dark tbody tr:hover {
+    background: rgba(255, 215, 0, 0.05);
+}
+
+/* Сетка параметров */
+.params-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.param-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.param-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 215, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+.param-name {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    color: #CCCCCC;
+    word-break: break-all;
+    flex: 1;
+    margin-right: 0.75rem;
+}
+
+.param-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+/* Детали параметров */
+.params-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.param-detail-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+
+.param-detail-name {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+    color: #888888;
+    margin-bottom: 0.25rem;
+    word-break: break-all;
+}
+
+.param-detail-value {
+    font-size: 0.9rem;
+    color: #FFFFFF;
+    font-weight: 500;
+}
+
+.param-detail-value.numeric {
+    color: #FFD700;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* График */
+.chart-mini-container {
+    height: 300px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+/* Информационные элементы */
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #CCCCCC;
+    font-size: 0.9rem;
+}
+
+.info-value {
+    color: #FFD700;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+/* Кнопки и элементы управления */
+.btn-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border: none;
+    color: #000000;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-gold:hover {
+    background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
+    color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+}
+
+.btn-outline-gold {
+    border: 2px solid #FFD700;
+    color: #FFD700;
+    background: transparent;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-gold:hover {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    transform: translateY(-2px);
+}
+
+.btn-dark-custom {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #CCCCCC;
+    transition: all 0.3s ease;
+}
+
+.btn-dark-custom:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #FFFFFF;
+}
+
+/* Список ТС */
+.vehicles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vehicle-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.vehicle-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vehicle-item.selected {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.vehicle-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    color: #FFD700;
+}
+
+.vehicle-info {
+    flex: 1;
+}
+
+.vehicle-name {
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 0.1rem;
+}
+
+.vehicle-plate {
+    color: #888888;
+    font-size: 0.8rem;
+}
+
+.vehicle-check {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1.1rem;
+}
+
+.vehicle-item.selected .vehicle-check {
+    color: #FFD700;
+}
+
+/* Оверлей загрузки */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-content {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 215, 0, 0.3);
+    border-top: 4px solid #FFD700;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Уведомления */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9998;
+    max-width: 350px;
+}
+
+.notification-container .alert {
+    margin-bottom: 0.5rem;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Панель управления */
+.control-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-title {
+    color: #FFD700;
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.panel-title i {
+    margin-right: 0.5rem;
+}
+
+.panel-body {
+    padding: 1.5rem;
+}
+
+/* Формы */
+.form-control.bg-dark {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+}
+
+.form-control.bg-dark:focus {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: #FFD700;
+    color: #FFFFFF;
+    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
+}
+
+.form-label {
+    color: #CCCCCC;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Карточки */
+.card.bg-dark {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.card-header {
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .params-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .params-details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tabs-header {
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        margin: 0.25rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .vehicle-name {
+        font-size: 0.85rem;
+    }
+
+    .vehicle-plate {
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}

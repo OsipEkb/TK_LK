@@ -1,3 +1,4 @@
+# dashboard/services.py
 import requests
 import logging
 import warnings
@@ -21,6 +22,47 @@ class AutoGraphService:
             'User-Agent': 'MonitoringApp/1.0'
         })
         self.session.verify = False
+
+    def get_schemas(self):
+        """Получить доступные схемы"""
+        if not self.token:
+            return []
+
+        try:
+            url = f"{self.BASE_URL}/EnumSchemas"
+            params = {'session': self.token}
+
+            response = self.session.get(url, params=params, timeout=30)
+
+            if response.status_code != 200:
+                logger.error(f"Ошибка получения схем: HTTP {response.status_code}")
+                return []
+
+            schemas_data = response.json()
+
+            if not isinstance(schemas_data, list):
+                logger.warning(f"Unexpected schemas format: {type(schemas_data)}")
+                return []
+
+            schemas = []
+            for item in schemas_data:
+                try:
+                    schemas.append({
+                        'id': item.get('ID', ''),
+                        'name': item.get('Name', 'Без названия'),
+                        'group': item.get('Group', ''),
+                        'groupID': item.get('GroupID', '')
+                    })
+                except Exception as e:
+                    logger.error(f"Error parsing schema item: {e}")
+                    continue
+
+            logger.info(f"Retrieved {len(schemas)} schemas")
+            return schemas
+
+        except Exception as e:
+            logger.error(f"Ошибка получения схем: {e}")
+            return []
 
     def get_devices(self, schema_id):
         """Получить все устройства схемы"""
@@ -107,7 +149,7 @@ class AutoGraphService:
             logger.error(f"Ошибка получения онлайн данных: {e}")
             return {}
 
-    # ==================== НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ТОПЛИВОМ ====================
+    # ==================== МЕТОДЫ ДЛЯ РАБОТЫ С ТОПЛИВОМ ====================
 
     def get_device_parameters(self, schema_id, device_id):
         """Получить параметры устройства"""

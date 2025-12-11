@@ -620,3 +620,105 @@ class AutoGraphDeviceService:
         except Exception as e:
             logger.error(f"Ошибка получения устройств: {e}", exc_info=True)
             return []
+
+    def _get_trip_items_data_all_params(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
+        """Получаем ВСЕ данные через GetTripItems с параметром '*'"""
+        url = f"{self.BASE_URL}/GetTripItems"
+        params = {
+            'session': self.token,
+            'schemaID': self.schema_id,
+            'IDs': ','.join(device_ids),
+            'SD': start_fmt,
+            'ED': end_fmt,
+            'tripSplitterIndex': 0,
+            'tripParams': '*',  # ВСЕ параметры
+            'tripTotalParams': '*'  # Все итоговые параметры
+        }
+
+        try:
+            logger.info(f"Запрос ВСЕХ данных GetTripItems: {len(device_ids)} ТС, период {start_fmt} - {end_fmt}")
+            logger.info(f"Параметры запроса: {params}")
+
+            response = self.session.get(url, params=params, timeout=180)  # Увеличиваем таймаут до 3 минут
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ GetTripItems со всеми параметрами: получено данных для {len(data)} ТС")
+
+                # Логируем информацию о параметрах
+                for device_id, device_data in data.items():
+                    params_list = device_data.get('Params', [])
+                    items = device_data.get('Items', [])
+                    logger.info(f"  ТС {device_id}: {len(params_list)} параметров, {len(items)} записей")
+                    if params_list:
+                        # Логируем первые 10 параметров
+                        sample_params = params_list[:10]
+                        logger.info(f"    Примеры параметров: {', '.join(sample_params)}")
+                        if len(params_list) > 10:
+                            logger.info(f"    ... и еще {len(params_list) - 10} параметров")
+
+                return data
+            else:
+                logger.error(f"❌ GetTripItems со всеми параметрами: HTTP {response.status_code}")
+                logger.error(f"URL: {url}")
+                logger.error(f"Ответ: {response.text[:500]}")
+
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ GetTripItems со всеми параметрами: Таймаут запроса (180 секунд)")
+            return {}
+
+        except Exception as e:
+            logger.error(f"❌ GetTripItems со всеми параметрами ошибка: {e}", exc_info=True)
+
+        return {}
+
+    def _get_trip_items_data_all_params(self, device_ids: List[str], start_fmt: str, end_fmt: str) -> Dict:
+        """Получаем ВСЕ данные через GetTripItems с параметром '*'"""
+        url = f"{self.BASE_URL}/GetTripItems"
+        params = {
+            'session': self.token,
+            'schemaID': self.schema_id,
+            'IDs': ','.join(device_ids),
+            'SD': start_fmt,
+            'ED': end_fmt,
+            'tripSplitterIndex': 0,
+            'tripParams': '*',  # ВСЕ параметры
+            'tripTotalParams': '*'  # Все итоговые параметры
+        }
+
+        try:
+            logger.info(f"Запрос ВСЕХ данных GetTripItems: {len(device_ids)} ТС, период {start_fmt} - {end_fmt}")
+            logger.info(f"Параметры запроса: {params}")
+
+            response = self.session.get(url, params=params, timeout=180)  # Увеличиваем таймаут до 3 минут
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ GetTripItems со всеми параметрами: получено данных для {len(data)} ТС")
+
+                # Логируем информацию о параметрах
+                for device_id, device_data in data.items():
+                    params_list = device_data.get('Params', [])
+                    items = device_data.get('Items', [])
+                    logger.info(f"  ТС {device_id}: {len(params_list)} параметров, {len(items)} записей")
+                    if params_list:
+                        # Логируем первые 10 параметров
+                        sample_params = params_list[:10]
+                        logger.info(f"    Примеры параметров: {', '.join(sample_params)}")
+                        if len(params_list) > 10:
+                            logger.info(f"    ... и еще {len(params_list) - 10} параметров")
+
+                return data
+            else:
+                logger.error(f"❌ GetTripItems со всеми параметрами: HTTP {response.status_code}")
+                logger.error(f"URL: {url}")
+                logger.error(f"Ответ: {response.text[:500]}")
+
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ GetTripItems со всеми параметрами: Таймаут запроса (180 секунд)")
+            return {}
+
+        except Exception as e:
+            logger.error(f"❌ GetTripItems со всеми параметрами ошибка: {e}", exc_info=True)
+
+        return {}

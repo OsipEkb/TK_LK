@@ -33,7 +33,7 @@
                     </div>
                 </div>
                 <div class="col-lg-4 text-end">
-                    <button class="btn btn-gold" onclick="analyzer.loadHistoricalData()">
+                    <button class="btn btn-gold" onclick="analyzer.loadData()">
                         <i class="fas fa-sync-alt me-2"></i>Обновить данные
                     </button>
                 </div>
@@ -50,50 +50,8 @@
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div class="info-content">
-                        <strong>Как работают данные:</strong> AutoGRAPH возвращает данные, сгруппированные по <strong>стадиям</strong> (DGPSAvailable, DIgnition, DInMove и др.). Каждая запись содержит статистику за период этой стадии. Мы агрегируем эти данные для отображения сводной информации.
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Статистика -->
-        <div class="row mb-4" id="statsSection" style="display: none;">
-            <div class="col-12">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-list-ol"></i>
-                        </div>
-                        <div class="stat-value" id="statStages">0</div>
-                        <div class="stat-label">Стадий обработано</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-route"></i>
-                        </div>
-                        <div class="stat-value" id="statDistance">0</div>
-                        <div class="stat-label">Общий пробег (км)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-gas-pump"></i>
-                        </div>
-                        <div class="stat-value" id="statFuel">0</div>
-                        <div class="stat-label">Расход топлива (л)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-star"></i>
-                        </div>
-                        <div class="stat-value" id="statRating">0</div>
-                        <div class="stat-label">Ср. рейтинг (%)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-value" id="statHours">0</div>
-                        <div class="stat-label">Моточасы</div>
+                        <strong>Анализ данных:</strong> Система для работы с сырыми данными из AutoGRAPH.
+                        Используйте вкладки для анализа работы транспортных средств.
                     </div>
                 </div>
             </div>
@@ -119,7 +77,7 @@
                                    onkeyup="analyzer.searchVehicles(this.value)">
                         </div>
                     </div>
-                    <div class="panel-body" style="height: 400px; overflow-y: auto;">
+                    <div class="panel-body" style="height: 300px; overflow-y: auto;">
                         <div class="btn-group w-100 mb-3">
                             <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.selectAllVehicles()">
                                 <i class="fas fa-check-double me-1"></i> Все
@@ -166,45 +124,37 @@
                             <button class="btn btn-dark-custom flex-grow-1" onclick="analyzer.setPeriod(30)">Месяц</button>
                         </div>
 
-                        <button class="btn btn-gold w-100" id="loadDataBtn" onclick="analyzer.loadHistoricalData()" disabled>
-                            <i class="fas fa-cloud-download-alt me-2"></i>
+                        <button class="btn btn-gold w-100" id="loadDataBtn" onclick="analyzer.loadData()" disabled>
+                            <i class="fas fa-database me-2"></i>
                             Загрузить данные
                         </button>
                     </div>
                 </div>
 
-                <!-- Информация о данных -->
-                <div class="control-panel mb-4" id="dataInfoPanel" style="display: none;">
+                <!-- Статистика данных -->
+                <div class="control-panel">
                     <div class="panel-header">
                         <h5 class="panel-title">
-                            <i class="fas fa-info-circle"></i>
-                            Информация о данных
+                            <i class="fas fa-chart-bar"></i>
+                            Статистика
                         </h5>
                     </div>
                     <div class="panel-body">
-                        <div class="data-info-item">
-                            <div class="data-info-label">
-                                <i class="fas fa-database me-2"></i>Тип данных:
-                            </div>
-                            <div class="data-info-value" id="dataType">Стадии</div>
+                        <div class="stats-item">
+                            <div class="stats-label">Записей:</div>
+                            <div class="stats-value" id="statsRecords">0</div>
                         </div>
-                        <div class="data-info-item">
-                            <div class="data-info-label">
-                                <i class="fas fa-list-ol me-2"></i>Стадий:
-                            </div>
-                            <div class="data-info-value" id="dataStages">0</div>
+                        <div class="stats-item">
+                            <div class="stats-label">Параметров:</div>
+                            <div class="stats-value" id="statsParams">0</div>
                         </div>
-                        <div class="data-info-item">
-                            <div class="data-info-label">
-                                <i class="fas fa-car me-2"></i>ТС:
-                            </div>
-                            <div class="data-info-value" id="dataVehicles">0</div>
+                        <div class="stats-item">
+                            <div class="stats-label">ТС в данных:</div>
+                            <div class="stats-value" id="statsVehicles">0</div>
                         </div>
-                        <div class="data-info-item">
-                            <div class="data-info-label">
-                                <i class="fas fa-sliders-h me-2"></i>Параметров:
-                            </div>
-                            <div class="data-info-value" id="dataParams">0</div>
+                        <div class="stats-item">
+                            <div class="stats-label">Период:</div>
+                            <div class="stats-value" id="statsPeriod">—</div>
                         </div>
                     </div>
                 </div>
@@ -215,169 +165,202 @@
                 <!-- Вкладки -->
                 <div class="tabs-container mb-4">
                     <div class="tabs-header">
-                        <button class="tab-btn active" data-tab="summary">
-                            <i class="fas fa-chart-pie me-2"></i> Сводка
-                        </button>
-                        <button class="tab-btn" data-tab="details">
-                            <i class="fas fa-table me-2"></i> Детали
-                        </button>
-                        <button class="tab-btn" data-tab="stages">
-                            <i class="fas fa-list me-2"></i> Стадии
-                        </button>
-                        <button class="tab-btn" data-tab="charts">
-                            <i class="fas fa-chart-line me-2"></i> Графики
+                        <button class="tab-btn active" data-tab="rawdata">
+                            <i class="fas fa-database me-2"></i> Сырые данные
                         </button>
                     </div>
 
-                    <!-- Вкладка Сводка -->
-                    <div class="tab-content active" id="summaryTab">
-                        <div class="summary-container" id="summaryContainer">
-                            <div class="text-center py-5">
-                                <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
-                                <p class="text-muted mb-2">Загрузите данные для отображения сводки</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Вкладка Детали -->
-                    <div class="tab-content" id="detailsTab">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <button class="btn btn-dark-custom me-2" onclick="analyzer.exportData('csv')">
-                                    <i class="fas fa-file-csv me-2"></i>Экспорт CSV
-                                </button>
-                                <button class="btn btn-dark-custom" onclick="analyzer.showDataStructure()">
-                                    <i class="fas fa-code me-2"></i>Структура данных
-                                </button>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <span class="badge bg-gold text-dark me-3" id="detailsCount">0 записей</span>
-                                <div class="input-group input-group-sm" style="width: 200px;">
-                                    <input type="text" class="form-control bg-dark border-secondary text-light"
-                                           placeholder="Поиск..." id="detailsSearch"
-                                           onkeyup="analyzer.filterDetailsTable(this.value)">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive" style="max-height: 500px;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>ТС</th>
-                                        <th>Дата</th>
-                                        <th>Тип</th>
-                                        <th>Пробег (км)</th>
-                                        <th>Скорость (км/ч)</th>
-                                        <th>Расход (л)</th>
-                                        <th>Рейтинг (%)</th>
-                                        <th>Моточасы</th>
-                                        <th>Стадии</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="detailsTableBody">
-                                    <tr>
-                                        <td colspan="9" class="text-center py-5">
-                                            <i class="fas fa-database fa-2x text-muted mb-3"></i>
-                                            <p class="text-muted mb-0">Выберите ТС и период для загрузки данных</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Вкладка Стадии -->
-                    <div class="tab-content" id="stagesTab">
-                        <div class="stages-controls mb-4">
-                            <div class="row align-items-center">
-                                <div class="col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-dark border-secondary text-light">
-                                            <i class="fas fa-filter"></i>
-                                        </span>
-                                        <select class="form-control bg-dark border-secondary text-light"
-                                                id="stageTypeFilter">
-                                            <option value="">Все стадии</option>
-                                            <option value="DIgnition">Зажигание</option>
-                                            <option value="DInMove">Движение</option>
-                                            <option value="DGPSAvailable">GPS</option>
-                                            <option value="DGSMAvailable">GSM</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <div class="btn-group">
-                                        <button class="btn btn-gold" onclick="analyzer.showStageAnalysis()">
-                                            <i class="fas fa-chart-bar me-2"></i>Анализ стадий
-                                        </button>
+                    <!-- Вкладка Сырые данные -->
+                    <div class="tab-content active" id="rawdataTab">
+                        <div class="raw-data-container">
+                            <!-- Основная информация -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="info-panel info-small">
+                                        <div class="info-content">
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Пробег (км):</small>
+                                                    <div id="rawDataDistance">0</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Расход (л):</small>
+                                                    <div id="rawDataFuel">0</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Скорость (км/ч):</small>
+                                                    <div id="rawDataSpeed">0</div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted">Рейтинг (%):</small>
+                                                    <div id="rawDataRating">0</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="table-responsive" style="max-height: 500px;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>ТС</th>
-                                        <th>Стадия</th>
-                                        <th>Дата и время</th>
-                                        <th>Длительность</th>
-                                        <th>Статус</th>
-                                        <th>Пробег</th>
-                                        <th>Скорость</th>
-                                        <th>Расход</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="stagesTableBody">
-                                    <tr>
-                                        <td colspan="8" class="text-center py-5">
-                                            <i class="fas fa-list fa-2x text-muted mb-3"></i>
-                                            <p class="text-muted mb-0">Загрузите данные для просмотра стадий</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Вкладка Графики -->
-                    <div class="tab-content" id="chartsTab">
-                        <div class="charts-controls mb-4">
-                            <div class="row align-items-center">
-                                <div class="col-md-4">
-                                    <label class="form-label text-light">Параметр:</label>
-                                    <select class="form-control bg-dark border-secondary text-light"
-                                            id="chartParamSelect">
-                                        <option value="TotalDistance">Пробег (км)</option>
-                                        <option value="AverageSpeed">Средняя скорость (км/ч)</option>
-                                        <option value="Engine1FuelConsum">Расход топлива (л)</option>
-                                        <option value="DQRating">Рейтинг вождения (%)</option>
-                                        <option value="Engine1Motohours">Моточасы (ч)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label text-light">Тип графика:</label>
-                                    <select class="form-control bg-dark border-secondary text-light"
-                                            id="chartTypeSelect">
-                                        <option value="line">Линейный</option>
-                                        <option value="bar">Столбчатый</option>
-                                        <option value="area">Областной</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <button class="btn btn-gold" onclick="analyzer.createChart()">
-                                        <i class="fas fa-chart-line me-2"></i>Создать график
-                                    </button>
+                            <!-- Панель управления графиками -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Настройка графиков</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-light">Тип графика:</label>
+                                                        <select class="form-control bg-dark border-secondary text-light" id="chartTypeSelect">
+                                                            <option value="line">Линейный</option>
+                                                            <option value="bar">Вертикальные столбцы</option>
+                                                            <option value="barHorizontal">Горизонтальные столбцы</option>
+                                                            <option value="area">Областной</option>
+                                                            <option value="pie">Круговой</option>
+                                                            <option value="doughnut">Кольцевой</option>
+                                                            <option value="radar">Радарный</option>
+                                                            <option value="scatter">Точечный</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-light">Размер графика:</label>
+                                                        <select class="form-control bg-dark border-secondary text-light" id="chartSizeSelect">
+                                                            <option value="small">Узкий</option>
+                                                            <option value="medium" selected>Средний</option>
+                                                            <option value="large">Широкий</option>
+                                                            <option value="full">Полный</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-light">Цветовая схема:</label>
+                                                        <select class="form-control bg-dark border-secondary text-light" id="chartColorScheme">
+                                                            <option value="gold">Золотая</option>
+                                                            <option value="blue">Синяя</option>
+                                                            <option value="green">Зеленая</option>
+                                                            <option value="red">Красная</option>
+                                                            <option value="purple">Фиолетовая</option>
+                                                            <option value="rainbow">Радужная</option>
+                                                            <option value="monochrome">Монохром</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-light">Временной шаг:</label>
+                                                        <select class="form-control bg-dark border-secondary text-light" id="timeStepSelect">
+                                                            <option value="hour">1 час</option>
+                                                            <option value="3hours">3 часа</option>
+                                                            <option value="6hours">6 часов</option>
+                                                            <option value="9hours">9 часов</option>
+                                                            <option value="12hours">12 часов</option>
+                                                            <option value="day" selected>День</option>
+                                                            <option value="3days">3 дня</option>
+                                                            <option value="week">Неделя</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-light">Параметры для графика:</label>
+                                                        <select class="form-control bg-dark border-secondary text-light" id="chartParamsSelect" multiple>
+                                                            <!-- Заполнится через JS -->
+                                                        </select>
+                                                        <small class="text-muted">Удерживайте Ctrl для выбора нескольких параметров</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-12 text-end">
+                                                    <button class="btn btn-gold" onclick="analyzer.createChart()">
+                                                        <i class="fas fa-chart-line me-2"></i>Построить график
+                                                    </button>
+                                                    <button class="btn btn-outline-gold ms-2" onclick="analyzer.resetChartSettings()">
+                                                        <i class="fas fa-redo me-2"></i>Сбросить
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="charts-container" id="chartsContainer">
-                            <div class="text-center py-5">
-                                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                                <p class="text-muted mb-2">Выберите параметр и нажмите "Создать график"</p>
+                            <!-- График -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">График параметров</h5>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportChart('png')">
+                                                    <i class="fas fa-image me-1"></i>PNG
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportChart('jpg')">
+                                                    <i class="fas fa-file-image me-1"></i>JPG
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="chart-container" id="mainChartContainer">
+                                                <canvas id="mainChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Таблица данных -->
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">Таблица данных</h5>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportTableData('csv')">
+                                                    <i class="fas fa-file-csv me-1"></i>CSV
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.exportTableData('excel')">
+                                                    <i class="fas fa-file-excel me-1"></i>Excel
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                                <table class="table table-dark table-hover mb-0">
+                                                    <thead style="position: sticky; top: 0; background: #1a1a1a;">
+                                                        <tr>
+                                                            <th>#</th>
+                                                            <th>ТС</th>
+                                                            <th>Время</th>
+                                                            <th>Стадия</th>
+                                                            <th>Пробег (км)</th>
+                                                            <th>Расход (л)</th>
+                                                            <th>Скорость (км/ч)</th>
+                                                            <th>Рейтинг (%)</th>
+                                                            <th>Моточасы (ч)</th>
+                                                            <th>Детали</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="rawDataTableBody">
+                                                        <tr>
+                                                            <td colspan="10" class="text-center py-4">
+                                                                <i class="fas fa-database fa-2x text-muted mb-3"></i>
+                                                                <p class="text-muted mb-0">Загрузите данные для просмотра</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -387,56 +370,27 @@
     </div>
 </div>
 
-<!-- Модальное окно анализа стадий -->
-<div class="modal fade" id="stagesAnalysisModal">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-gold">
-                    <i class="fas fa-chart-bar me-2"></i>Анализ стадий
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="stages-chart-container">
-                            <canvas id="stagesChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="stages-stats" id="stagesStats">
-                            <!-- Статистика будет здесь -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Модальное окно структуры данных -->
-<div class="modal fade" id="dataStructureModal">
+<!-- Модальное окно деталей записи -->
+<div class="modal fade" id="recordDetailsModal">
     <div class="modal-dialog modal-xl">
         <div class="modal-content bg-dark">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title text-gold">
-                    <i class="fas fa-code me-2"></i>Структура данных
-                </h5>
+                <h5 class="modal-title text-gold">Детали записи</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
-                    <div class="col-md-4">
-                        <div class="data-structure-info">
-                            <h6 class="text-gold mb-3">Информация</h6>
-                            <div class="data-info-list" id="dataStructureInfo">
-                                <!-- Информация будет здесь -->
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <h6>Основная информация</h6>
+                        <table class="table table-sm table-dark" id="basicInfoTable">
+                            <!-- Будет заполнено через JS -->
+                        </table>
                     </div>
-                    <div class="col-md-8">
-                        <pre class="text-light" id="dataStructureContent" style="max-height: 600px; overflow-y: auto; font-size: 12px;"></pre>
+                    <div class="col-md-6">
+                        <h6>Все параметры</h6>
+                        <div class="params-details-container" id="paramsDetailsContainer">
+                            <!-- Будет заполнено через JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -464,23 +418,46 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // ============================================
-// VehiclesAnalyzer - Класс для анализа данных ТС
+// VehicleAnalyzer - Анализатор данных ТС
 // ============================================
-class VehiclesAnalyzer {
+class VehicleAnalyzer {
     constructor() {
         this.vehicles = [];
         this.filteredVehicles = [];
         this.selectedVehicles = [];
-        this.historicalData = null;
+        this.rawData = null;
+        this.chart = null;
+        this.currentChartData = null;
 
-        // Графики
-        this.charts = new Map();
-
-        // Настройки
-        this.settings = {
-            colors: [
-                '#FFD700', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6',
-                '#1abc9c', '#f39c12', '#d35400', '#34495e', '#7f8c8d'
+        // Цветовые схемы
+        this.colorSchemes = {
+            gold: [
+                '#FFD700', '#FFED4E', '#D4AF37', '#B8860B', '#FFA500',
+                '#F0C420', '#E6B800', '#CFB53B', '#C5B358', '#B29700'
+            ],
+            blue: [
+                '#3498db', '#2980b9', '#1f6394', '#15486f', '#0a2d4a',
+                '#5dade2', '#2e86c1', '#1b4f72', '#0e3a5c', '#082947'
+            ],
+            green: [
+                '#2ecc71', '#27ae60', '#1e8449', '#145a32', '#0a301b',
+                '#52be80', '#229954', '#196f3d', '#0e4d2a', '#073018'
+            ],
+            red: [
+                '#e74c3c', '#c0392b', '#a93226', '#7b241c', '#4d160f',
+                '#ec7063', '#cb4335', '#a93226', '#78281f', '#4a1c13'
+            ],
+            purple: [
+                '#9b59b6', '#8e44ad', '#7d3c98', '#6c3483', '#5b2c6f',
+                '#af7ac5', '#9b59b6', '#884ea0', '#76448a', '#633974'
+            ],
+            rainbow: [
+                '#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF',
+                '#4B0082', '#8B00FF', '#FF1493', '#00CED1', '#32CD32'
+            ],
+            monochrome: [
+                '#FFFFFF', '#CCCCCC', '#999999', '#666666', '#333333',
+                '#E6E6E6', '#B3B3B3', '#808080', '#4D4D4D', '#1A1A1A'
             ]
         };
     }
@@ -489,12 +466,12 @@ class VehiclesAnalyzer {
     // ИНИЦИАЛИЗАЦИЯ
     // ============================================
     async init() {
-        console.log('🚀 Инициализация анализа ТС');
+        console.log('🚀 Инициализация анализатора ТС');
 
         try {
             await this.loadVehicles();
             this.setupEventListeners();
-            this.showNotification('Система анализа готова к работе', 'info');
+            this.showNotification('Система готова к работе', 'info');
 
         } catch (error) {
             console.error('Ошибка инициализации:', error);
@@ -524,7 +501,7 @@ class VehiclesAnalyzer {
             const data = await response.json();
 
             if (data.success) {
-                this.vehicles = data.data.vehicles;
+                this.vehicles = data.data.vehicles || [];
                 this.filteredVehicles = [...this.vehicles];
                 console.log(`✅ Загружено ТС: ${this.vehicles.length}`);
                 this.renderVehiclesList();
@@ -542,7 +519,7 @@ class VehiclesAnalyzer {
         }
     }
 
-    async loadHistoricalData() {
+    async loadData() {
         if (this.selectedVehicles.length === 0) {
             this.showNotification('Выберите хотя бы одно ТС', 'warning');
             return;
@@ -558,9 +535,9 @@ class VehiclesAnalyzer {
 
         try {
             this.showLoading('Загрузка данных', 'Получение данных из AutoGRAPH...');
-            this.updateProgress(30, 'Подключение к API...');
+            this.updateProgress(30, 'Отправка запроса...');
 
-            const response = await fetch('/vehicles/api/get-historical-data/', {
+            const response = await fetch('/vehicles/api/get-raw-data-table/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -573,32 +550,19 @@ class VehiclesAnalyzer {
                 })
             });
 
-            this.updateProgress(60, 'Обработка ответа...');
+            this.updateProgress(60, 'Обработка данных...');
 
             if (!response.ok) {
                 throw new Error(`HTTP ошибка: ${response.status}`);
             }
 
             const data = await response.json();
-            this.updateProgress(90, 'Анализ данных...');
+            this.updateProgress(90, 'Форматирование данных...');
 
             if (data.success) {
-                this.historicalData = data.data.historical_data;
-
-                console.log('📊 Загружены исторические данные:', {
-                    vehicles: this.historicalData.vehicles ? Object.keys(this.historicalData.vehicles).length : 0,
-                    totalStages: this.historicalData.total_stages || 0,
-                    dataType: this.historicalData.data_type || 'unknown'
-                });
-
-                // Обновляем интерфейс
-                this.updateStatistics();
-                this.renderSummary();
-                this.renderDetailsTable();
-                this.renderStagesTable();
-                this.showDataInfo();
-
-                this.showNotification('Данные успешно загружены', 'success');
+                this.rawData = data.data;
+                this.renderData();
+                this.showNotification(`Загружено ${data.data.summary?.total_records || 0} записей`, 'success');
 
             } else {
                 throw new Error(data.error || 'Ошибка загрузки данных');
@@ -606,8 +570,7 @@ class VehiclesAnalyzer {
 
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
-            this.showNotification(`Ошибка: ${error.message}`, 'error');
-
+            this.showNotification('Ошибка: ' + error.message, 'error');
         } finally {
             this.updateProgress(100, 'Завершено');
             setTimeout(() => this.hideLoading(), 1000);
@@ -615,7 +578,639 @@ class VehiclesAnalyzer {
     }
 
     // ============================================
-    // ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
+    // ОТОБРАЖЕНИЕ ДАННЫХ
+    // ============================================
+    renderData() {
+        if (!this.rawData) return;
+
+        const summary = this.rawData.summary || {};
+        const tableData = this.rawData.table_data || {};
+        const paramGroups = this.rawData.parameter_groups || {};
+
+        // Обновляем статистику
+        this.updateStatistics(summary);
+
+        // Обновляем основную информацию
+        this.updateMainInfo();
+
+        // Заполняем выбор параметров для графиков
+        this.populateChartParams(paramGroups);
+
+        // Показываем данные первого ТС
+        if (tableData.vehicles && Object.keys(tableData.vehicles).length > 0) {
+            const firstVehicleId = Object.keys(tableData.vehicles)[0];
+            this.renderVehicleTableData(firstVehicleId);
+        }
+    }
+
+    updateStatistics(summary) {
+        const recordsEl = document.getElementById('statsRecords');
+        const paramsEl = document.getElementById('statsParams');
+        const vehiclesEl = document.getElementById('statsVehicles');
+        const periodEl = document.getElementById('statsPeriod');
+
+        if (recordsEl) recordsEl.textContent = (summary.total_records || 0).toLocaleString('ru-RU');
+        if (paramsEl) paramsEl.textContent = summary.total_parameters || 0;
+        if (vehiclesEl) vehiclesEl.textContent = summary.vehicle_count || 0;
+        if (periodEl) periodEl.textContent = summary.period?.start ?
+            `${summary.period.start} - ${summary.period.end}` : '—';
+    }
+
+    updateMainInfo() {
+        if (!this.rawData || !this.rawData.table_data?.vehicles) return;
+
+        let totalDistance = 0;
+        let totalFuel = 0;
+        let totalSpeed = 0;
+        let totalRating = 0;
+        let count = 0;
+
+        Object.values(this.rawData.table_data.vehicles).forEach(vehicleData => {
+            (vehicleData.samples || []).forEach(item => {
+                const distance = this.getNumericValue(item.Values, ['TotalDistance', 'Distance', 'Odometer']);
+                const fuel = this.getNumericValue(item.Values, ['Engine1FuelConsum', 'FuelConsumption', 'Fuel']);
+                const speed = this.getNumericValue(item.Values, ['Speed', 'AverageSpeed', 'MaxSpeed']);
+                const rating = this.getNumericValue(item.Values, ['DQRating', 'Rating']);
+
+                if (distance !== null) totalDistance += distance;
+                if (fuel !== null) totalFuel += fuel;
+                if (speed !== null) {
+                    totalSpeed += speed;
+                    count++;
+                }
+                if (rating !== null) totalRating += rating;
+            });
+        });
+
+        const distanceEl = document.getElementById('rawDataDistance');
+        const fuelEl = document.getElementById('rawDataFuel');
+        const speedEl = document.getElementById('rawDataSpeed');
+        const ratingEl = document.getElementById('rawDataRating');
+
+        if (distanceEl) distanceEl.textContent = this.formatNumber(totalDistance, 1);
+        if (fuelEl) fuelEl.textContent = this.formatNumber(totalFuel, 1);
+        if (speedEl) speedEl.textContent = count > 0 ? this.formatNumber(totalSpeed / count, 1) : '0';
+        if (ratingEl) ratingEl.textContent = count > 0 ? this.formatNumber(totalRating / count, 1) : '0';
+    }
+
+    populateChartParams(paramGroups) {
+        const select = document.getElementById('chartParamsSelect');
+        if (!select) return;
+
+        let html = '';
+
+        for (const [groupId, groupData] of Object.entries(paramGroups)) {
+            (groupData.params || []).forEach(param => {
+                html += `<option value="${param.api_name || param.id}">${groupData.name}: ${param.display_name || param.name}</option>`;
+            });
+        }
+
+        select.innerHTML = html;
+    }
+
+    renderVehicleTableData(vehicleId = null) {
+        if (!vehicleId) return;
+
+        if (!this.rawData || !this.rawData.table_data?.vehicles?.[vehicleId]) {
+            return;
+        }
+
+        const vehicleData = this.rawData.table_data.vehicles[vehicleId];
+
+        // Заполняем таблицу
+        const tbody = document.getElementById('rawDataTableBody');
+        if (!tbody) return;
+
+        if (!vehicleData.samples || vehicleData.samples.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" class="text-center py-4">
+                        <i class="fas fa-database fa-2x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">Нет данных для отображения</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        vehicleData.samples.forEach((item, index) => {
+            const speed = this.getParamValue(item.Values, ['Speed', 'AverageSpeed', 'MaxSpeed']);
+            const fuel = this.getParamValue(item.Values, ['Engine1FuelConsum', 'FuelConsumption', 'Fuel']);
+            const distance = this.getParamValue(item.Values, ['TotalDistance', 'Distance', 'Odometer']);
+            const rating = this.getParamValue(item.Values, ['DQRating', 'Rating']);
+            const hours = this.getParamValue(item.Values, ['Engine1Motohours', 'TotalDuration', 'MoveDuration']);
+
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${vehicleData.name}</td>
+                    <td>${this.formatDateTime(item.DT)}</td>
+                    <td><span class="badge bg-secondary">${item.Stage || '—'}</span></td>
+                    <td>${distance}</td>
+                    <td>${fuel}</td>
+                    <td>${speed}</td>
+                    <td>${rating}</td>
+                    <td>${hours}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-gold"
+                                onclick="analyzer.showRecordDetails('${vehicleId}', ${index})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    // ============================================
+    // ГРАФИКИ
+    // ============================================
+    createChart() {
+        if (!this.rawData) {
+            this.showNotification('Сначала загрузите данные', 'warning');
+            return;
+        }
+
+        const paramsSelect = document.getElementById('chartParamsSelect');
+        if (!paramsSelect) return;
+
+        const selectedParams = Array.from(paramsSelect.selectedOptions)
+            .map(opt => opt.value);
+
+        if (selectedParams.length === 0) {
+            this.showNotification('Выберите хотя бы один параметр для графика', 'warning');
+            return;
+        }
+
+        const chartType = document.getElementById('chartTypeSelect').value;
+        const chartSize = document.getElementById('chartSizeSelect').value;
+        const colorScheme = document.getElementById('chartColorScheme').value;
+        const timeStep = document.getElementById('timeStepSelect').value;
+
+        // Подготавливаем данные для графика
+        const chartData = this.prepareChartData(selectedParams, timeStep);
+
+        if (!chartData || chartData.labels.length === 0) {
+            this.showNotification('Нет данных для построения графика', 'warning');
+            return;
+        }
+
+        // Настраиваем размер контейнера
+        this.setChartSize(chartSize);
+
+        // Создаем график
+        this.renderChart(chartType, chartData, colorScheme);
+    }
+
+    prepareChartData(params, timeStep) {
+        if (!this.rawData || !this.rawData.table_data?.vehicles) return null;
+
+        const vehicles = this.rawData.table_data.vehicles;
+        const chartData = {
+            labels: [],
+            datasets: []
+        };
+
+        // Собираем все временные метки
+        const allTimes = new Set();
+        Object.values(vehicles).forEach(vehicleData => {
+            (vehicleData.samples || []).forEach(item => {
+                if (item.DT) {
+                    const timeGroup = this.groupTimeByStep(item.DT, timeStep);
+                    allTimes.add(timeGroup);
+                }
+            });
+        });
+
+        // Сортируем временные метки
+        chartData.labels = Array.from(allTimes).sort();
+
+        // Для каждого параметра создаем набор данных
+        params.forEach((param, paramIndex) => {
+            const paramData = this.prepareParamData(param, chartData.labels, timeStep);
+
+            if (paramData && paramData.length > 0) {
+                const colors = this.getColorScheme(paramIndex);
+
+                chartData.datasets.push({
+                    label: param,
+                    data: paramData,
+                    backgroundColor: this.getBackgroundColor(chartData.labels.length, colors.primary),
+                    borderColor: colors.border,
+                    borderWidth: 2,
+                    fill: document.getElementById('chartTypeSelect').value === 'area',
+                    tension: 0.3
+                });
+            }
+        });
+
+        return chartData;
+    }
+
+    prepareParamData(param, labels, timeStep) {
+        if (!this.rawData || !this.rawData.table_data?.vehicles) return [];
+
+        const vehicles = this.rawData.table_data.vehicles;
+        const paramData = new Array(labels.length).fill(0);
+        const counts = new Array(labels.length).fill(0);
+
+        Object.values(vehicles).forEach(vehicleData => {
+            (vehicleData.samples || []).forEach(item => {
+                if (item.Values && item.Values[param] !== undefined && item.DT) {
+                    const timeGroup = this.groupTimeByStep(item.DT, timeStep);
+                    const index = labels.indexOf(timeGroup);
+
+                    if (index !== -1) {
+                        const value = parseFloat(item.Values[param]);
+                        if (!isNaN(value)) {
+                            paramData[index] += value;
+                            counts[index]++;
+                        }
+                    }
+                }
+            });
+        });
+
+        // Вычисляем средние значения
+        return paramData.map((sum, i) => counts[i] > 0 ? sum / counts[i] : 0);
+    }
+
+    groupTimeByStep(dt, step) {
+        if (!dt) return '';
+
+        try {
+            const date = new Date(dt);
+
+            switch(step) {
+                case 'hour':
+                    return date.toISOString().slice(0, 13) + ':00';
+                case '3hours':
+                    const hour3 = Math.floor(date.getHours() / 3) * 3;
+                    return `${date.toISOString().slice(0, 10)} ${hour3.toString().padStart(2, '0')}:00`;
+                case '6hours':
+                    const hour6 = Math.floor(date.getHours() / 6) * 6;
+                    return `${date.toISOString().slice(0, 10)} ${hour6.toString().padStart(2, '0')}:00`;
+                case '9hours':
+                    const hour9 = Math.floor(date.getHours() / 9) * 9;
+                    return `${date.toISOString().slice(0, 10)} ${hour9.toString().padStart(2, '0')}:00`;
+                case '12hours':
+                    const hour12 = Math.floor(date.getHours() / 12) * 12;
+                    return `${date.toISOString().slice(0, 10)} ${hour12.toString().padStart(2, '0')}:00`;
+                case 'day':
+                    return date.toISOString().slice(0, 10);
+                case '3days':
+                    const day3 = Math.floor(date.getDate() / 3) * 3;
+                    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${day3.toString().padStart(2, '0')}`;
+                case 'week':
+                    const weekStart = new Date(date);
+                    weekStart.setDate(date.getDate() - date.getDay());
+                    return weekStart.toISOString().slice(0, 10);
+                default:
+                    return date.toISOString().slice(0, 10);
+            }
+        } catch (e) {
+            return dt.slice(0, 10); // Возвращаем первые 10 символов если не удалось распарсить
+        }
+    }
+
+    setChartSize(size) {
+        const container = document.getElementById('mainChartContainer');
+        if (!container) return;
+
+        switch(size) {
+            case 'small':
+                container.style.height = '300px';
+                break;
+            case 'medium':
+                container.style.height = '400px';
+                break;
+            case 'large':
+                container.style.height = '500px';
+                break;
+            case 'full':
+                container.style.height = '600px';
+                break;
+        }
+    }
+
+    getColorScheme(index) {
+        const schemeName = document.getElementById('chartColorScheme')?.value || 'gold';
+        const scheme = this.colorSchemes[schemeName] || this.colorSchemes.gold;
+
+        const colorIndex = index % scheme.length;
+        return {
+            primary: scheme[colorIndex],
+            border: scheme[colorIndex]
+        };
+    }
+
+    getBackgroundColor(count, baseColor) {
+        const chartType = document.getElementById('chartTypeSelect')?.value || 'line';
+
+        if (chartType === 'pie' || chartType === 'doughnut') {
+            // Для круговых диаграмм нужны разные цвета для каждого сегмента
+            const schemeName = document.getElementById('chartColorScheme')?.value || 'gold';
+            const scheme = this.colorSchemes[schemeName] || this.colorSchemes.gold;
+
+            const colors = [];
+            for (let i = 0; i < count; i++) {
+                colors.push(scheme[i % scheme.length]);
+            }
+            return colors;
+        } else {
+            // Для остальных типов - один цвет с прозрачностью
+            return baseColor + '40'; // 25% прозрачность
+        }
+    }
+
+    renderChart(type, data, colorScheme) {
+        const canvas = document.getElementById('mainChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        // Уничтожаем предыдущий график
+        if (this.chart) {
+            this.chart.destroy();
+        }
+
+        // Настраиваем тип графика
+        let chartType = type;
+        if (type === 'barHorizontal') {
+            chartType = 'bar';
+        }
+
+        // Настройки для разных типов графиков
+        const options = this.getChartOptions(type, colorScheme);
+
+        // Создаем график
+        try {
+            this.chart = new Chart(ctx, {
+                type: chartType,
+                data: data,
+                options: options
+            });
+
+            this.currentChartData = { type, data, colorScheme };
+            this.showNotification('График построен', 'success');
+        } catch (error) {
+            console.error('Ошибка создания графика:', error);
+            this.showNotification('Ошибка создания графика: ' + error.message, 'error');
+        }
+    }
+
+    getChartOptions(type, colorScheme) {
+        const isHorizontal = type === 'barHorizontal';
+        const isCircular = type === 'pie' || type === 'doughnut';
+        const isRadar = type === 'radar';
+
+        const baseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Анализ параметров ТС',
+                    color: '#FFD700',
+                    font: { size: 16, weight: 'bold' }
+                },
+                legend: {
+                    labels: {
+                        color: '#FFFFFF',
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#FFD700',
+                    bodyColor: '#FFFFFF',
+                    borderColor: '#FFD700',
+                    borderWidth: 1
+                }
+            }
+        };
+
+        if (isCircular || isRadar) {
+            return baseOptions;
+        }
+
+        return {
+            ...baseOptions,
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#CCCCCC' },
+                    title: {
+                        display: isHorizontal,
+                        text: 'Значение',
+                        color: '#CCCCCC'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#CCCCCC' },
+                    title: {
+                        display: !isHorizontal,
+                        text: 'Значение',
+                        color: '#CCCCCC'
+                    }
+                }
+            }
+        };
+    }
+
+    resetChartSettings() {
+        document.getElementById('chartTypeSelect').value = 'line';
+        document.getElementById('chartSizeSelect').value = 'medium';
+        document.getElementById('chartColorScheme').value = 'gold';
+        document.getElementById('timeStepSelect').value = 'day';
+
+        const paramsSelect = document.getElementById('chartParamsSelect');
+        if (paramsSelect) {
+            Array.from(paramsSelect.options).forEach(option => {
+                option.selected = false;
+            });
+        }
+
+        if (this.chart) {
+            this.chart.destroy();
+            this.chart = null;
+        }
+
+        this.showNotification('Настройки графика сброшены', 'info');
+    }
+
+    exportChart(format) {
+        if (!this.chart) {
+            this.showNotification('Сначала постройте график', 'warning');
+            return;
+        }
+
+        try {
+            const link = document.createElement('a');
+            link.download = `график-${new Date().toISOString().slice(0,10)}.${format}`;
+            link.href = this.chart.toBase64Image();
+            link.click();
+
+            this.showNotification('График экспортирован', 'success');
+        } catch (error) {
+            console.error('Ошибка экспорта графика:', error);
+            this.showNotification('Ошибка экспорта графика', 'error');
+        }
+    }
+
+    // ============================================
+    // ЭКСПОРТ ДАННЫХ
+    // ============================================
+    exportTableData(format) {
+        if (!this.rawData) {
+            this.showNotification('Нет данных для экспорта', 'warning');
+            return;
+        }
+
+        let data, filename, mimeType;
+
+        if (format === 'csv') {
+            data = this.convertToCSV();
+            filename = `данные-тс-${new Date().toISOString().slice(0,10)}.csv`;
+            mimeType = 'text/csv;charset=utf-8;';
+        } else if (format === 'excel') {
+            data = this.convertToCSV();
+            filename = `данные-тс-${new Date().toISOString().slice(0,10)}.xls`;
+            mimeType = 'application/vnd.ms-excel';
+        } else {
+            return;
+        }
+
+        try {
+            const blob = new Blob([data], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+
+            this.showNotification('Данные экспортированы', 'success');
+        } catch (error) {
+            console.error('Ошибка экспорта данных:', error);
+            this.showNotification('Ошибка экспорта данных', 'error');
+        }
+    }
+
+    convertToCSV() {
+        if (!this.rawData || !this.rawData.table_data?.vehicles) return '';
+
+        let csv = 'ТС;Время;Стадия;Длительность;';
+
+        // Собираем все уникальные параметры
+        const allParams = new Set();
+        Object.values(this.rawData.table_data.vehicles).forEach(vehicleData => {
+            (vehicleData.samples || []).forEach(item => {
+                if (item.Values) {
+                    Object.keys(item.Values).forEach(param => {
+                        allParams.add(param);
+                    });
+                }
+            });
+        });
+
+        const paramsArray = Array.from(allParams);
+        csv += paramsArray.join(';') + '\n';
+
+        // Добавляем данные
+        Object.entries(this.rawData.table_data.vehicles).forEach(([vehicleId, vehicleData]) => {
+            (vehicleData.samples || []).forEach(item => {
+                const row = [
+                    vehicleData.name || '',
+                    `"${item.DT || ''}"`,
+                    `"${item.Stage || ''}"`,
+                    `"${item.Duration || ''}"`
+                ];
+
+                paramsArray.forEach(param => {
+                    let value = item.Values?.[param] || '';
+                    if (typeof value === 'string') {
+                        value = value.replace(/"/g, '""');
+                        if (value.includes(';') || value.includes('"')) {
+                            value = `"${value}"`;
+                        }
+                    }
+                    row.push(value);
+                });
+
+                csv += row.join(';') + '\n';
+            });
+        });
+
+        return csv;
+    }
+
+    // ============================================
+    // ДЕТАЛИ ЗАПИСИ
+    // ============================================
+    showRecordDetails(vehicleId, itemIndex) {
+        if (!this.rawData || !this.rawData.table_data?.vehicles?.[vehicleId]) {
+            return;
+        }
+
+        const vehicleData = this.rawData.table_data.vehicles[vehicleId];
+        const item = vehicleData.samples?.[itemIndex];
+
+        if (!item) return;
+
+        // Заполняем основную информацию
+        const basicInfoTable = document.getElementById('basicInfoTable');
+        if (basicInfoTable) {
+            basicInfoTable.innerHTML = `
+                <tr><td>ТС:</td><td class="text-gold">${vehicleData.name || ''}</td></tr>
+                <tr><td>Время:</td><td>${this.formatDateTime(item.DT)}</td></tr>
+                <tr><td>Стадия:</td><td>${item.Stage || '—'}</td></tr>
+                <tr><td>Длительность:</td><td>${item.Duration || '—'}</td></tr>
+                <tr><td>Заголовок:</td><td>${item.Caption || '—'}</td></tr>
+            `;
+        }
+
+        // Заполняем все параметры
+        const paramsContainer = document.getElementById('paramsDetailsContainer');
+        if (paramsContainer) {
+            let paramsHtml = '<div class="params-details-grid">';
+
+            if (item.Values) {
+                for (const [param, value] of Object.entries(item.Values)) {
+                    const numValue = parseFloat(value);
+                    const isNumeric = !isNaN(numValue);
+
+                    paramsHtml += `
+                        <div class="param-detail-item">
+                            <div class="param-detail-header">
+                                <div class="param-detail-name" title="${param}">${param}</div>
+                            </div>
+                            <div class="param-detail-value">
+                                ${isNumeric ? this.formatNumber(numValue, 4) : value}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            paramsHtml += '</div>';
+            paramsContainer.innerHTML = paramsHtml;
+        }
+
+        // Показываем модальное окно
+        const modalElement = document.getElementById('recordDetailsModal');
+        if (modalElement) {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
+    }
+
+    // ============================================
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     // ============================================
     renderVehiclesList() {
         const container = document.getElementById('vehiclesList');
@@ -654,600 +1249,6 @@ class VehiclesAnalyzer {
         container.innerHTML = html;
         this.updateVehicleCount();
         this.updateLoadButton();
-    }
-
-    updateStatistics() {
-        if (!this.historicalData?.summary) {
-            document.getElementById('statsSection').style.display = 'none';
-            return;
-        }
-
-        const summary = this.historicalData.summary;
-
-        document.getElementById('statStages').textContent = summary.total_stages?.toLocaleString('ru-RU') || '0';
-        document.getElementById('statDistance').textContent = summary.total_distance?.toLocaleString('ru-RU', {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-        }) || '0';
-        document.getElementById('statFuel').textContent = summary.total_fuel?.toLocaleString('ru-RU', {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-        }) || '0';
-        document.getElementById('statRating').textContent = summary.avg_rating?.toFixed(1) || '0';
-        document.getElementById('statHours').textContent = summary.total_hours?.toFixed(1) || '0';
-
-        document.getElementById('statsSection').style.display = 'block';
-    }
-
-    showDataInfo() {
-        if (!this.historicalData) return;
-
-        const panel = document.getElementById('dataInfoPanel');
-        panel.style.display = 'block';
-
-        document.getElementById('dataType').textContent = this.historicalData.data_type === 'stage_based' ? 'Стадии' : 'Данные';
-        document.getElementById('dataStages').textContent = this.historicalData.total_stages?.toLocaleString('ru-RU') || '0';
-        document.getElementById('dataVehicles').textContent = this.historicalData.vehicles ? Object.keys(this.historicalData.vehicles).length : 0;
-        document.getElementById('dataParams').textContent = this.historicalData.available_parameters?.length || 0;
-    }
-
-    renderSummary() {
-        const container = document.getElementById('summaryContainer');
-        if (!container || !this.historicalData?.vehicles) return;
-
-        let html = `
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="summary-header mb-4">
-                        <h4 class="text-gold">Сводка по транспортным средствам</h4>
-                        <p class="text-light opacity-75">Период: ${this.historicalData.period?.start} - ${this.historicalData.period?.end}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-        `;
-
-        Object.entries(this.historicalData.vehicles).forEach(([vehicleId, vehicleData]) => {
-            const summary = vehicleData.summary || {};
-            const stats = vehicleData.statistics || {};
-
-            html += `
-                <div class="col-md-6 mb-4">
-                    <div class="vehicle-summary-card">
-                        <div class="vehicle-summary-header">
-                            <h5 class="vehicle-summary-title">${vehicleData.name}</h5>
-                            <span class="badge bg-gold text-dark">${vehicleData.stage_count} стадий</span>
-                        </div>
-
-                        <div class="vehicle-summary-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-road me-2"></i>Пробег
-                                        </div>
-                                        <div class="summary-stat-value">${this.formatNumber(summary.total_distance || 0)} км</div>
-                                    </div>
-
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-gas-pump me-2"></i>Расход топлива
-                                        </div>
-                                        <div class="summary-stat-value">${this.formatNumber(summary.total_fuel || 0)} л</div>
-                                    </div>
-
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-tachometer-alt me-2"></i>Ср. скорость
-                                        </div>
-                                        <div class="summary-stat-value">${this.formatNumber(summary.avg_speed || 0)} км/ч</div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-star me-2"></i>Рейтинг
-                                        </div>
-                                        <div class="summary-stat-value">${this.formatNumber(summary.avg_rating || 0)}%</div>
-                                    </div>
-
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-clock me-2"></i>Моточасы
-                                        </div>
-                                        <div class="summary-stat-value">${this.formatNumber(summary.total_hours || 0)} ч</div>
-                                    </div>
-
-                                    <div class="summary-stat">
-                                        <div class="summary-stat-label">
-                                            <i class="fas fa-car me-2"></i>Поездок
-                                        </div>
-                                        <div class="summary-stat-value">${vehicleData.trip_count || 0}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="vehicle-summary-footer mt-3">
-                                <button class="btn btn-sm btn-outline-gold" onclick="analyzer.showVehicleDetails('${vehicleId}')">
-                                    <i class="fas fa-chart-line me-1"></i>Детали
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        html += `</div>`;
-        container.innerHTML = html;
-    }
-
-    renderDetailsTable() {
-        const container = document.getElementById('detailsTableBody');
-        const countElement = document.getElementById('detailsCount');
-
-        if (!container || !this.historicalData?.vehicles) {
-            container.innerHTML = `
-                <tr>
-                    <td colspan="9" class="text-center py-4">
-                        <i class="fas fa-database fa-2x text-muted"></i>
-                        <p class="text-muted mt-2">Нет данных</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        let html = '';
-        let rowCount = 0;
-
-        Object.entries(this.historicalData.vehicles).forEach(([vehicleId, vehicleData]) => {
-            const tableData = vehicleData.table_data || [];
-
-            tableData.forEach(row => {
-                html += `
-                    <tr>
-                        <td>${vehicleData.name}</td>
-                        <td>${row.date || row.dt || ''}</td>
-                        <td><span class="badge ${row.type === 'trip' ? 'bg-primary' : 'bg-secondary'}">${row.type === 'trip' ? 'Поездка' : 'За день'}</span></td>
-                        <td class="text-end">${this.formatNumber(row.distance || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(row.speed || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(row.fuel || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(row.rating || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(row.hours || 0, 1)}</td>
-                        <td>${row.stages || ''}</td>
-                    </tr>
-                `;
-                rowCount++;
-            });
-        });
-
-        if (!html) {
-            html = `
-                <tr>
-                    <td colspan="9" class="text-center py-4">
-                        <i class="fas fa-database fa-2x text-muted"></i>
-                        <p class="text-muted mt-2">Нет данных для отображения</p>
-                    </td>
-                </tr>
-            `;
-        }
-
-        container.innerHTML = html;
-        countElement.textContent = `${rowCount} записей`;
-    }
-
-    renderStagesTable() {
-        const container = document.getElementById('stagesTableBody');
-        if (!container || !this.historicalData?.vehicles) return;
-
-        let html = '';
-        let stageCount = 0;
-
-        Object.entries(this.historicalData.vehicles).forEach(([vehicleId, vehicleData]) => {
-            const stages = vehicleData.stages_sample || [];
-
-            stages.forEach(stage => {
-                html += `
-                    <tr>
-                        <td>${vehicleData.name}</td>
-                        <td><span class="badge bg-info">${stage.stage || ''}</span></td>
-                        <td>${this.formatDate(stage.dt || '')}</td>
-                        <td>${stage.duration || ''}</td>
-                        <td>${stage.status ? 'Вкл' : 'Выкл'}</td>
-                        <td class="text-end">${this.formatNumber(stage.TotalDistance || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(stage.AverageSpeed || 0, 1)}</td>
-                        <td class="text-end">${this.formatNumber(stage.Engine1FuelConsum || 0, 1)}</td>
-                    </tr>
-                `;
-                stageCount++;
-            });
-        });
-
-        if (!html) {
-            html = `
-                <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <i class="fas fa-list fa-2x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">Нет данных о стадиях</p>
-                    </td>
-                </tr>
-            `;
-        }
-
-        container.innerHTML = html;
-    }
-
-    filterDetailsTable(query) {
-        const tbody = document.getElementById('detailsTableBody');
-        const rows = tbody.getElementsByTagName('tr');
-
-        for (let row of rows) {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(query.toLowerCase()) ? '' : 'none';
-        }
-    }
-
-    // ============================================
-    // ГРАФИКИ И АНАЛИЗ
-    // ============================================
-    createChart() {
-        const paramSelect = document.getElementById('chartParamSelect');
-        const typeSelect = document.getElementById('chartTypeSelect');
-
-        if (!paramSelect || !paramSelect.value) {
-            this.showNotification('Выберите параметр для графика', 'warning');
-            return;
-        }
-
-        const param = paramSelect.value;
-        const chartType = typeSelect.value;
-        const paramName = this.getParamDisplayName(param);
-
-        // Создаем контейнер для графика
-        const container = document.getElementById('chartsContainer');
-        const chartId = `chart_${Date.now()}`;
-
-        if (container.innerHTML.includes('Выберите параметр')) {
-            container.innerHTML = '';
-        }
-
-        const chartCard = document.createElement('div');
-        chartCard.className = 'chart-card mb-4';
-        chartCard.id = `${chartId}_card`;
-
-        chartCard.innerHTML = `
-            <div class="chart-header">
-                <div class="d-flex align-items-center">
-                    <h5 class="chart-title mb-0">${paramName}</h5>
-                    <small class="text-muted ms-2">(${this.getParamUnit(param)})</small>
-                </div>
-                <div class="chart-actions">
-                    <button class="btn btn-sm btn-outline-gold" onclick="analyzer.removeChart('${chartId}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="chart-body">
-                <canvas id="${chartId}"></canvas>
-            </div>
-        `;
-
-        container.appendChild(chartCard);
-
-        // Создаем график
-        setTimeout(() => {
-            this.renderChart(chartId, param, chartType);
-        }, 100);
-    }
-
-    renderChart(chartId, param, chartType) {
-        const canvas = document.getElementById(chartId);
-        if (!canvas || !this.historicalData?.vehicles) return;
-
-        // Подготавливаем данные
-        const chartData = this.prepareChartData(param);
-        if (!chartData) {
-            this.showNotification(`Нет данных для параметра ${param}`, 'warning');
-            return;
-        }
-
-        const config = {
-            type: chartType,
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: {
-                        display: true,
-                        text: this.getParamDisplayName(param),
-                        color: '#FFD700',
-                        font: { size: 16 }
-                    },
-                    legend: {
-                        labels: {
-                            color: '#FFFFFF',
-                            font: { size: 12 }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: '#CCCCCC' }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: {
-                            color: '#CCCCCC',
-                            callback: (value) => this.formatNumber(value, 2)
-                        }
-                    }
-                }
-            }
-        };
-
-        const ctx = canvas.getContext('2d');
-        const chart = new Chart(ctx, config);
-        this.charts.set(chartId, chart);
-    }
-
-    prepareChartData(param) {
-        if (!this.historicalData?.vehicles) return null;
-
-        const datasets = [];
-        const labels = new Set();
-        const dataByVehicle = {};
-
-        // Собираем данные по дням
-        Object.entries(this.historicalData.vehicles).forEach(([vehicleId, vehicleData], idx) => {
-            const chartData = vehicleData.chart_data;
-            if (!chartData?.daily) return;
-
-            const vehicleName = vehicleData.name;
-            dataByVehicle[vehicleId] = {
-                label: vehicleName,
-                data: [],
-                backgroundColor: this.settings.colors[idx % this.settings.colors.length] + '40',
-                borderColor: this.settings.colors[idx % this.settings.colors.length],
-                borderWidth: 2
-            };
-
-            chartData.daily.forEach(day => {
-                labels.add(day.date);
-                dataByVehicle[vehicleId].data.push({
-                    x: day.date,
-                    y: day[this.getParamKey(param)] || 0
-                });
-            });
-        });
-
-        // Преобразуем в массивы
-        const sortedLabels = Array.from(labels).sort();
-
-        Object.values(dataByVehicle).forEach(vehicleData => {
-            // Сортируем данные по дате
-            vehicleData.data.sort((a, b) => a.x.localeCompare(b.x));
-
-            datasets.push({
-                ...vehicleData,
-                data: vehicleData.data.map(item => item.y)
-            });
-        });
-
-        if (datasets.length === 0) return null;
-
-        return {
-            labels: sortedLabels,
-            datasets: datasets
-        };
-    }
-
-    getParamKey(param) {
-        const mapping = {
-            'TotalDistance': 'distance',
-            'AverageSpeed': 'avg_speed',
-            'Engine1FuelConsum': 'fuel',
-            'DQRating': 'avg_rating',
-            'Engine1Motohours': 'distance' // временно
-        };
-
-        return mapping[param] || param.toLowerCase();
-    }
-
-    getParamDisplayName(param) {
-        const names = {
-            'TotalDistance': 'Пробег',
-            'AverageSpeed': 'Средняя скорость',
-            'Engine1FuelConsum': 'Расход топлива',
-            'DQRating': 'Рейтинг вождения',
-            'Engine1Motohours': 'Моточасы'
-        };
-
-        return names[param] || param;
-    }
-
-    getParamUnit(param) {
-        const units = {
-            'TotalDistance': 'км',
-            'AverageSpeed': 'км/ч',
-            'Engine1FuelConsum': 'л',
-            'DQRating': '%',
-            'Engine1Motohours': 'ч'
-        };
-
-        return units[param] || '';
-    }
-
-    removeChart(chartId) {
-        const chart = this.charts.get(chartId);
-        if (chart) {
-            chart.destroy();
-            this.charts.delete(chartId);
-        }
-
-        const card = document.getElementById(`${chartId}_card`);
-        if (card) {
-            card.remove();
-        }
-
-        // Если контейнер пустой, показываем сообщение
-        const container = document.getElementById('chartsContainer');
-        if (container && container.children.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-5">
-                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                    <p class="text-muted mb-2">Выберите параметр и нажмите "Создать график"</p>
-                </div>
-            `;
-        }
-    }
-
-    showStageAnalysis() {
-        if (!this.historicalData?.vehicles) {
-            this.showNotification('Нет данных для анализа', 'warning');
-            return;
-        }
-
-        // Собираем статистику по стадиям
-        const stageCounts = {};
-
-        Object.values(this.historicalData.vehicles).forEach(vehicleData => {
-            const stages = vehicleData.stages_sample || [];
-            stages.forEach(stage => {
-                const stageName = stage.stage || '';
-                if (stageName) {
-                    stageCounts[stageName] = (stageCounts[stageName] || 0) + 1;
-                }
-            });
-        });
-
-        // Создаем график
-        const modal = new bootstrap.Modal(document.getElementById('stagesAnalysisModal'));
-        const canvas = document.getElementById('stagesChart');
-        const statsContainer = document.getElementById('stagesStats');
-
-        // Обновляем статистику
-        let statsHtml = '<h6 class="text-gold mb-3">Распределение стадий</h6>';
-        Object.entries(stageCounts).forEach(([stage, count]) => {
-            statsHtml += `
-                <div class="stage-stat-item">
-                    <div class="stage-name">${stage}</div>
-                    <div class="stage-count">${count}</div>
-                </div>
-            `;
-        });
-        statsContainer.innerHTML = statsHtml;
-
-        // Создаем график
-        const ctx = canvas.getContext('2d');
-        new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(stageCounts),
-                datasets: [{
-                    data: Object.values(stageCounts),
-                    backgroundColor: this.settings.colors,
-                    borderColor: '#1a1a1a',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: '#FFFFFF',
-                            font: { size: 12 }
-                        }
-                    }
-                }
-            }
-        });
-
-        modal.show();
-    }
-
-    showVehicleDetails(vehicleId) {
-        if (!this.historicalData?.vehicles?.[vehicleId]) return;
-
-        const vehicleData = this.historicalData.vehicles[vehicleId];
-        alert(`Детали по ТС: ${vehicleData.name}\nПробег: ${vehicleData.summary?.total_distance || 0} км\nРасход: ${vehicleData.summary?.total_fuel || 0} л`);
-    }
-
-    showDataStructure() {
-        if (!this.historicalData) {
-            this.showNotification('Нет данных для отображения', 'warning');
-            return;
-        }
-
-        const modal = new bootstrap.Modal(document.getElementById('dataStructureModal'));
-        const content = document.getElementById('dataStructureContent');
-        const info = document.getElementById('dataStructureInfo');
-
-        // Подготавливаем данные для отображения
-        const displayData = {
-            summary: this.historicalData.summary || {},
-            vehicle_count: Object.keys(this.historicalData.vehicles || {}).length,
-            total_stages: this.historicalData.total_stages || 0,
-            data_type: this.historicalData.data_type || 'unknown',
-            available_parameters: this.historicalData.available_parameters?.length || 0,
-            period: this.historicalData.period || {}
-        };
-
-        // Обновляем информацию
-        info.innerHTML = `
-            <div class="data-info-item">
-                <div class="data-info-label">Тип данных:</div>
-                <div class="data-info-value">${displayData.data_type}</div>
-            </div>
-            <div class="data-info-item">
-                <div class="data-info-label">ТС:</div>
-                <div class="data-info-value">${displayData.vehicle_count}</div>
-            </div>
-            <div class="data-info-item">
-                <div class="data-info-label">Стадий:</div>
-                <div class="data-info-value">${displayData.total_stages}</div>
-            </div>
-            <div class="data-info-item">
-                <div class="data-info-label">Параметров:</div>
-                <div class="data-info-value">${displayData.available_parameters}</div>
-            </div>
-        `;
-
-        // Отображаем структуру
-        content.textContent = JSON.stringify(displayData, null, 2);
-        modal.show();
-    }
-
-    // ============================================
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // ============================================
-    formatDate(dateStr) {
-        if (!dateStr) return '—';
-        try {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('ru-RU') + ' ' +
-                   date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
-        } catch {
-            return dateStr;
-        }
-    }
-
-    formatNumber(value, decimals = 2) {
-        if (value === null || value === undefined || isNaN(value)) {
-            return '—';
-        }
-
-        return value.toLocaleString('ru-RU', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
-        });
     }
 
     searchVehicles(query) {
@@ -1297,7 +1298,9 @@ class VehiclesAnalyzer {
 
     updateLoadButton() {
         const hasVehicles = this.selectedVehicles.length > 0;
-        const hasDates = document.getElementById('dateFrom').value && document.getElementById('dateTo').value;
+        const dateFrom = document.getElementById('dateFrom');
+        const dateTo = document.getElementById('dateTo');
+        const hasDates = dateFrom?.value && dateTo?.value;
         const loadBtn = document.getElementById('loadDataBtn');
 
         if (loadBtn) {
@@ -1306,64 +1309,87 @@ class VehiclesAnalyzer {
     }
 
     updateVehicleCount() {
-        document.getElementById('selectedCount').textContent = this.selectedVehicles.length;
+        const selectedCount = document.getElementById('selectedCount');
+        if (selectedCount) {
+            selectedCount.textContent = this.selectedVehicles.length;
+        }
     }
 
-    exportData(format) {
-        if (!this.historicalData) {
-            this.showNotification('Нет данных для экспорта', 'warning');
-            return;
+    getParamValue(values, paramNames) {
+        if (!values) return '—';
+
+        for (const paramName of paramNames) {
+            if (values[paramName] !== undefined) {
+                const value = values[paramName];
+                const numValue = parseFloat(value);
+                return !isNaN(numValue) ? this.formatNumber(numValue, 2) : value;
+            }
         }
-
-        let data, mime, filename;
-
-        if (format === 'csv') {
-            data = this.convertToCSV();
-            mime = 'text/csv;charset=utf-8;';
-            filename = `данные-тс-${new Date().toISOString().slice(0,10)}.csv`;
-        } else {
-            return;
-        }
-
-        const blob = new Blob([data], { type: mime });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-
-        this.showNotification(`Данные экспортированы в ${format.toUpperCase()}`, 'success');
+        return '—';
     }
 
-    convertToCSV() {
-        let csv = 'ТС;Дата;Тип;Пробег (км);Скорость (км/ч);Расход (л);Рейтинг (%);Моточасы (ч);Стадии\n';
+    getNumericValue(values, paramNames) {
+        if (!values) return null;
 
-        Object.entries(this.historicalData.vehicles).forEach(([vehicleId, vehicleData]) => {
-            const tableData = vehicleData.table_data || [];
+        for (const paramName of paramNames) {
+            if (values[paramName] !== undefined) {
+                const numValue = parseFloat(values[paramName]);
+                return !isNaN(numValue) ? numValue : null;
+            }
+        }
+        return null;
+    }
 
-            tableData.forEach(row => {
-                csv += `"${vehicleData.name}";`;
-                csv += `"${row.date || row.dt || ''}";`;
-                csv += `"${row.type === 'trip' ? 'Поездка' : 'За день'}";`;
-                csv += `${row.distance || 0};`;
-                csv += `${row.speed || 0};`;
-                csv += `${row.fuel || 0};`;
-                csv += `${row.rating || 0};`;
-                csv += `${row.hours || 0};`;
-                csv += `"${row.stages || ''}"\n`;
-            });
+    formatDateTime(dt) {
+        if (!dt) return '—';
+        try {
+            if (dt.includes('T')) {
+                const [date, time] = dt.split('T');
+                const [year, month, day] = date.split('-');
+                return `${day}.${month}.${year} ${time.substring(0, 8)}`;
+            }
+            return dt;
+        } catch {
+            return dt;
+        }
+    }
+
+    formatNumber(value, decimals = 0) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '0';
+        }
+
+        return value.toLocaleString('ru-RU', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
         });
-
-        return csv;
     }
 
-    // ============================================
-    // ЗАГРУЗКА И УВЕДОМЛЕНИЯ
-    // ============================================
+    setupEventListeners() {
+        // Даты
+        const dateFrom = document.getElementById('dateFrom');
+        const dateTo = document.getElementById('dateTo');
+
+        if (dateFrom) dateFrom.addEventListener('change', () => this.updateLoadButton());
+        if (dateTo) dateTo.addEventListener('change', () => this.updateLoadButton());
+
+        // Горячие клавиши
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                this.loadData();
+            }
+        });
+    }
+
     showLoading(title, message) {
         const overlay = document.getElementById('loadingOverlay');
         if (overlay) {
-            document.getElementById('loadingTitle').textContent = title;
-            document.getElementById('loadingMessage').textContent = message;
+            const titleEl = document.getElementById('loadingTitle');
+            const messageEl = document.getElementById('loadingMessage');
+
+            if (titleEl) titleEl.textContent = title;
+            if (messageEl) messageEl.textContent = message;
             overlay.style.display = 'flex';
         }
     }
@@ -1382,7 +1408,8 @@ class VehiclesAnalyzer {
         }
 
         if (message) {
-            document.getElementById('loadingMessage').textContent = message;
+            const messageEl = document.getElementById('loadingMessage');
+            if (messageEl) messageEl.textContent = message;
         }
     }
 
@@ -1425,61 +1452,10 @@ class VehiclesAnalyzer {
         const token = document.querySelector('[name=csrfmiddlewaretoken]');
         return token ? token.value : '';
     }
-
-    setupEventListeners() {
-        // Даты
-        document.getElementById('dateFrom')?.addEventListener('change', () => this.updateLoadButton());
-        document.getElementById('dateTo')?.addEventListener('change', () => this.updateLoadButton());
-
-        // Вкладки
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tabId = btn.dataset.tab;
-                this.switchTab(tabId);
-            });
-        });
-
-        // Горячие клавиши
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'l') {
-                e.preventDefault();
-                this.loadHistoricalData();
-            }
-        });
-    }
-
-    switchTab(tabId) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-
-        const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
-        const activeContent = document.getElementById(`${tabId}Tab`);
-
-        if (activeBtn) activeBtn.classList.add('active');
-        if (activeContent) activeContent.classList.add('active');
-
-        // При переключении на графики - перерисовываем
-        if (tabId === 'charts') {
-            setTimeout(() => {
-                this.charts.forEach(chart => {
-                    try {
-                        chart.resize();
-                    } catch (e) {
-                        console.warn('Ошибка перерисовки графика:', e);
-                    }
-                });
-            }, 100);
-        }
-    }
 }
 
 // Глобальный экземпляр
-const analyzer = new VehiclesAnalyzer();
+const analyzer = new VehicleAnalyzer();
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1489,14 +1465,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <style>
 /* ============================================
-   ДОПОЛНИТЕЛЬНЫЕ СТИЛИ
+   ОСНОВНЫЕ СТИЛИ
    ============================================ */
+
+.vehicles-container {
+    padding-bottom: 2rem;
+}
 
 /* Информационная панель */
 .info-panel {
-    background: linear-gradient(135deg,
-        rgba(255, 215, 0, 0.1),
-        rgba(255, 215, 0, 0.05));
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
     border: 1px solid rgba(255, 215, 0, 0.3);
     border-radius: 8px;
     padding: 1rem;
@@ -1505,81 +1483,31 @@ document.addEventListener('DOMContentLoaded', () => {
     align-items: flex-start;
 }
 
+.info-panel.info-small {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-panel.info-small .info-content {
+    width: 100%;
+}
+
 .info-icon {
-    color: #FFD700;
+    color: var(--primary-gold);
     font-size: 1.2rem;
     margin-right: 1rem;
     margin-top: 0.2rem;
 }
 
 .info-content {
-    color: #FFFFFF;
+    color: var(--text-light);
     font-size: 0.9rem;
     flex: 1;
 }
 
-/* Карточка сводки по ТС */
-.vehicle-summary-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    overflow: hidden;
-    height: 100%;
-}
-
-.vehicle-summary-header {
-    padding: 1rem;
-    background: linear-gradient(135deg,
-        rgba(52, 152, 219, 0.1),
-        rgba(52, 152, 219, 0.05));
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.vehicle-summary-title {
-    color: #3498db;
-    font-weight: 600;
-    margin: 0;
-    font-size: 1rem;
-}
-
-.vehicle-summary-body {
-    padding: 1rem;
-}
-
-.summary-stat {
-    margin-bottom: 0.75rem;
-}
-
-.summary-stat-label {
-    color: #CCCCCC;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.25rem;
-}
-
-.summary-stat-value {
-    color: #FFD700;
-    font-weight: 600;
-    font-size: 1.1rem;
-}
-
-.vehicle-summary-footer {
-    padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Информация о данных */
-.data-info-panel {
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 8px;
-    padding: 1rem;
-}
-
-.data-info-item {
+/* Статистика */
+.stats-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1587,105 +1515,438 @@ document.addEventListener('DOMContentLoaded', () => {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.data-info-item:last-child {
+.stats-item:last-child {
     border-bottom: none;
 }
 
-.data-info-label {
+.stats-label {
     color: #CCCCCC;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
+    font-size: 0.85rem;
 }
 
-.data-info-value {
+.stats-value {
     color: #FFD700;
     font-weight: 600;
     font-size: 1rem;
 }
 
-/* Карточка графика */
-.chart-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+/* Контейнер для графиков */
+.chart-container {
+    height: 400px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
-    overflow: hidden;
+    padding: 1rem;
 }
 
-.chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: linear-gradient(135deg,
-        rgba(255, 215, 0, 0.1),
-        rgba(255, 215, 0, 0.05));
+/* Детали параметров */
+.params-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.param-detail-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+
+.param-detail-header {
+    margin-bottom: 0.5rem;
+}
+
+.param-detail-name {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.8rem;
+    color: #888888;
+    word-break: break-all;
+}
+
+.param-detail-value {
+    font-size: 0.9rem;
+    color: #FFD700;
+    font-weight: 500;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Таблица */
+.table-responsive {
+    border-radius: 8px;
+}
+
+.table-dark {
+    margin-bottom: 0;
+}
+
+.table-dark th {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    border-color: rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+}
+
+.table-dark td {
+    border-color: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.table-dark tbody tr:hover {
+    background: rgba(255, 215, 0, 0.05);
+}
+
+/* Панель управления графиками */
+.card.bg-dark {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.card-header {
+    background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.chart-title {
-    color: #FFD700;
-    font-weight: 600;
-    margin: 0;
-    font-size: 1rem;
+.card-body {
+    padding: 1.5rem;
 }
 
-.chart-body {
-    padding: 1rem;
-    height: 300px;
+/* Формы */
+.form-control.bg-dark {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
 }
 
-/* Статистика стадий */
-.stages-chart-container {
-    height: 300px;
-    padding: 1rem;
+.form-control.bg-dark:focus {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: #FFD700;
+    color: #FFFFFF;
+    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25);
 }
 
-.stages-stats {
-    height: 300px;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-.stage-stat-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
+.form-label {
+    color: #CCCCCC;
+    font-size: 0.9rem;
     margin-bottom: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
-    border-left: 3px solid #FFD700;
 }
 
-.stage-name {
+/* Кнопки */
+.btn-gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border: none;
+    color: #000000;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-gold:hover {
+    background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);
+    color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+}
+
+.btn-outline-gold {
+    border: 2px solid #FFD700;
+    color: #FFD700;
+    background: transparent;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-gold:hover {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    transform: translateY(-2px);
+}
+
+.btn-dark-custom {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #CCCCCC;
+    transition: all 0.3s ease;
+}
+
+.btn-dark-custom:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+    color: #FFFFFF;
+}
+
+/* Список ТС */
+.vehicles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.vehicle-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.vehicle-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vehicle-item.selected {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.3);
+}
+
+.vehicle-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 215, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    color: #FFD700;
+}
+
+.vehicle-info {
+    flex: 1;
+}
+
+.vehicle-name {
     color: #FFFFFF;
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    margin-bottom: 0.1rem;
 }
 
-.stage-count {
+.vehicle-plate {
+    color: #888888;
+    font-size: 0.8rem;
+}
+
+.vehicle-check {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 1.1rem;
+}
+
+.vehicle-item.selected .vehicle-check {
+    color: #FFD700;
+}
+
+/* Оверлей загрузки */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.loading-content {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 215, 0, 0.3);
+    border-top: 4px solid #FFD700;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Уведомления */
+.notification-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9998;
+    max-width: 350px;
+}
+
+.notification-container .alert {
+    margin-bottom: 0.5rem;
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Вкладки */
+.tabs-container {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.tabs-header {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #CCCCCC;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin: 0 0.25rem;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
+}
+
+.tab-btn.active {
+    background: rgba(255, 215, 0, 0.1);
+    color: #FFD700;
+    border-bottom: 2px solid #FFD700;
+}
+
+.tab-content {
+    display: none;
+    padding: 1.5rem;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Панель управления */
+.control-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.panel-header {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-title {
     color: #FFD700;
     font-weight: 600;
-    background: rgba(255, 215, 0, 0.1);
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
+    font-size: 1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.panel-title i {
+    margin-right: 0.5rem;
+}
+
+.panel-body {
+    padding: 1.5rem;
+}
+
+/* Модальное окно */
+.modal-content {
+    border: 2px solid #FFD700;
+    border-radius: 12px;
+}
+
+.modal-header {
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.modal-title {
+    color: #FFD700;
+    font-weight: 600;
 }
 
 /* Адаптивность */
 @media (max-width: 768px) {
-    .vehicle-summary-card {
-        margin-bottom: 1rem;
+    .params-details-grid {
+        grid-template-columns: 1fr;
     }
 
-    .chart-body {
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        margin: 0.25rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .vehicle-name {
+        font-size: 0.85rem;
+    }
+
+    .vehicle-plate {
+        font-size: 0.75rem;
+    }
+
+    .chart-container {
+        height: 300px;
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .chart-container {
         height: 250px;
     }
 
-    .stages-chart-container,
-    .stages-stats {
-        height: 250px;
+    .stats-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .stats-value {
+        margin-top: 0.25rem;
     }
 }
 </style>

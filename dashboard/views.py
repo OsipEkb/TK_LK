@@ -1,3 +1,4 @@
+# dashboard/views.py
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 import logging
@@ -9,11 +10,53 @@ logger = logging.getLogger(__name__)
 
 def dashboard_view(request):
     """Основной дашборд"""
+    # Проверяем наличие токена
     token = request.session.get('autograph_token')
-    schema_id = request.session.get('autograph_schema_id')
-
-    if not token or not schema_id:
+    if not token:
+        logger.info("No token found, redirecting to login")
         return redirect('users:login')
+
+    # Проверяем наличие schema_id
+    schema_id = request.session.get('autograph_schema_id')
+    if not schema_id:
+        logger.warning(f"No schema_id found for user {request.session.get('autograph_username')}")
+
+        # Пробуем получить первую схему из сохраненных
+        schemas = request.session.get('available_schemas', [])
+        if schemas:
+            first_schema = schemas[0]
+            schema_id = first_schema['id']
+            schema_name = first_schema['name']
+
+            # Сохраняем в сессии
+            request.session['autograph_schema_id'] = schema_id
+            request.session['autograph_schema_name'] = schema_name
+            logger.info(f"Restored schema from session: {schema_name} (ID: {schema_id})")
+        else:
+            # Если нет схем в сессии, пробуем запросить их
+            try:
+                service = AutoGraphService(token=token)
+                schemas = service.get_schemas()
+
+                if schemas:
+                    first_schema = schemas[0]
+                    schema_id = first_schema['id']
+                    schema_name = first_schema['name']
+
+                    # Сохраняем в сессии
+                    request.session['autograph_schema_id'] = schema_id
+                    request.session['autograph_schema_name'] = schema_name
+                    request.session['available_schemas'] = schemas
+                    logger.info(f"Fetched schema from API: {schema_name} (ID: {schema_id})")
+                else:
+                    return render(request, 'dashboard/error.html', {
+                        'error': 'Нет доступных схем мониторинга'
+                    })
+            except Exception as e:
+                logger.error(f"Error fetching schemas: {e}")
+                return render(request, 'dashboard/error.html', {
+                    'error': f'Ошибка получения схем: {str(e)}'
+                })
 
     return render(request, 'dashboard/dashboard.html', {
         'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
